@@ -347,7 +347,7 @@ static void DoArmyBaseGrowth(__int16 iX, __int16 iY, __int16 iCurrZoneType) {
 }
 
 static void DoAirPortGrowth(__int16 iX, __int16 iY, BYTE iCurrentTileID, __int16 iCurrZoneType) {
-	BOOL bMilitary, bAeroplaneLiftOff;
+	BOOL bMilitary, bTakeOffNorthSouth;
 	BYTE iFirstCheckedTileID, iSelectedTileID;
 	WORD wFlaggedTileCount;
 
@@ -363,16 +363,16 @@ static void DoAirPortGrowth(__int16 iX, __int16 iY, BYTE iCurrentTileID, __int16
 						Game_SpawnHelicopter(iX, iY);
 						return;
 					}
-					bAeroplaneLiftOff = FALSE;
+					bTakeOffNorthSouth = FALSE;
 					if (!IsEven(wViewRotation)) {
 						if (XBITReturnIsFlipped(iX, iY))
-							bAeroplaneLiftOff = TRUE;
+							bTakeOffNorthSouth = TRUE;
 					}
 					else {
 						if (!XBITReturnIsFlipped(iX, iY))
-							bAeroplaneLiftOff = TRUE;
+							bTakeOffNorthSouth = TRUE;
 					}
-					Game_SpawnAeroplane(iX, iY, (bAeroplaneLiftOff) ? 0 : 2);
+					Game_SpawnAeroplane(iX, iY, (bTakeOffNorthSouth) ? XTHG_DIRECTION_NORTH : XTHG_DIRECTION_EAST);
 				}
 			}
 		}
@@ -838,7 +838,7 @@ extern "C" void __cdecl Hook_SimulationGrowthTick(signed __int16 iStep, signed _
 			DoBudgetSubwayCheck(pSCView, iX, iY);
 		}
 	}
-	rcDst.top = -1000;
+	dirtyRect.top = -1000;
 }
 
 static void DeleteTilePortion(__int16 x, __int16 y) {
