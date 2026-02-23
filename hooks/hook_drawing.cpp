@@ -1056,6 +1056,38 @@ extern "C" void __cdecl Hook_DrawColorTile(__int16 iX, __int16 iY) {
 	}
 }
 
+extern "C" __int16 __cdecl Hook_PointToTile(__int16 x, __int16 y) {
+	CSimcityAppPrimary* pSCApp = &pCSimcityAppThis;
+	CSimcityView* pSCView = Game_SimcityApp_PointerToCSimcityViewClass(pSCApp);
+	__int16 ptX = x;
+	__int16 ptY = y;
+	__int16 retval = 0;
+
+	if (pSCView->dwSCVIsZoomed) {
+		// TODO: multiple scales of zoomage
+		ptX >>= 1;
+		ptY >>= 1;
+	}
+
+	__int16 iOffsetAdjustmentCenter = (ptX - iScreenOffSetX - 6) >> 1;
+	__int16 iOffsetAdjustmentX = ptY - iOffsetAdjustmentCenter - iScreenOffSetY - 1;
+	__int16 iOffsetAdjustmentY = ptY - iScreenOffSetY + iOffsetAdjustmentCenter - 3;
+
+	if (pSCView->wSCVZoomLevel) {
+		if (pSCView->wSCVZoomLevel == 1)
+			retval = Game_CalcTileHit8(iOffsetAdjustmentY + 12, iOffsetAdjustmentX + 12);
+		else if (pSCView->wSCVZoomLevel == 2)
+			retval = Game_CalcTileHit16(iOffsetAdjustmentY + 16, iOffsetAdjustmentX + 24);
+		else
+			retval = 0;
+	} else
+		retval = Game_CalcTileHit4(iOffsetAdjustmentY + 8, iOffsetAdjustmentX + 6);
+	
+	if (retval >> 8 < 0 || (unsigned __int8)retval >= 0x80u)
+		return -1;
+	return retval;
+}
+
 void InstallDrawingHooks_SC2K1996(void) {
 	// Hook for DrawAllLarge
 	VirtualProtect((LPVOID)0x4017FD, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
@@ -1084,6 +1116,10 @@ void InstallDrawingHooks_SC2K1996(void) {
 	// Hook for DrawColorTile
 	VirtualProtect((LPVOID)0x402F6D, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
 	NEWJMP((LPVOID)0x402F6D, Hook_DrawColorTile);
+
+	// Hook for PointToTile
+	VirtualProtect((LPVOID)0x401D16, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	NEWJMP((LPVOID)0x401D16, Hook_PointToTile);
 
 	UpdateDrawingHooks_SC2K1996();
 }

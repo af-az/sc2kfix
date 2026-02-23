@@ -3025,6 +3025,7 @@ GAMECALL(0x4023AB, void, __cdecl, DrawProcessMaskObject, __int16, __int16, __int
 GAMECALL(0x4023B0, int, __cdecl, IsValidTransitItems, __int16 x, __int16 y)
 GAMECALL(0x4023D3, void, __cdecl, ToggleColorCycling, CMFC3XPalette *, BOOL)
 GAMECALL(0x4023D8, void, __thiscall, SimcityApp_LoadScenario, CSimcityAppPrimary *)
+GAMECALL(0x4023DD, __int16, __cdecl, CalcTileHit4, __int16, __int16)
 GAMECALL(0x4023EC, void, __stdcall, ToolMenuUpdate, void)
 GAMECALL(0x4023F1, int, __thiscall, MainFrame_DoInflightDialog, CMainFrame *)
 GAMECALL(0x40240A, void, __thiscall, SimcityView_OnHScroll, CSimcityView *pThis, UINT nSBCode, UINT nPos, CMFC3XScrollBar *pScrollBar)
@@ -3055,6 +3056,7 @@ GAMECALL(0x402757, void, __thiscall, SimcityApp_LoadCityFromCMDLine, CSimcityApp
 GAMECALL(0x40278E, BOOL, __thiscall, MainFrame_OnQueryNewPalette, CMainFrame *)
 GAMECALL(0x402798, int, __cdecl, MapToolPlaceForest, __int16 iTileTargetX, __int16 iTileTargetY)
 GAMECALL(0x4027A7, void, __thiscall, SimcityView_OnVScroll, CSimcityView *pThis, UINT nSBCode, UINT nPos, CMFC3XScrollBar *pScrollBar)
+GAMECALL(0x4027B6, __int16, __cdecl, CalcTileHit16, __int16, __int16)
 GAMECALL(0x4027E3, BOOL, __cdecl, MoviePlay, HWND)
 GAMECALL(0x4027F2, int, __cdecl, ItemPlacementCheck, __int16 x, __int16 y, BYTE iTileID, __int16 iTileArea)
 GAMECALL(0x402810, int, __thiscall, SimcityView_UpdateAreaCompleteColorFill, CSimcityView *) // This appears to be a more comprehensive update that'll occur for highlighted/selected area or when you're moving the game area.
@@ -3097,6 +3099,7 @@ GAMECALL(0x402C34, BOOL, __thiscall, MainFrame_LoadGraphic, CMainFrame *, const 
 GAMECALL(0x402C3E, int, __thiscall, CityToolBar_HitTestFromPoint, CCityToolBar *, CMFC3XPoint)
 GAMECALL(0x402C4D, void, __cdecl, FailRadioToFileID, int, UINT)
 GAMECALL(0x402CF2, void, __thiscall, SimcityApp_SetGameCursor, CSimcityAppPrimary *pThis, int iNewCursor, BOOL bActive)
+GAMECALL(0x402D14, __int16, __cdecl, CalcTileHit8, __int16, __int16)
 GAMECALL(0x402D2E, void, __stdcall, UpdateBudgetInformation, void)
 GAMECALL(0x402D51, void, __stdcall, SimulationUpdateMonthlyTrafficData, void)
 GAMECALL(0x402D56, BYTE, __stdcall, PrepareLabel, void)
