@@ -73,6 +73,13 @@ extern "C" int __stdcall Hook_LoadStringA(HINSTANCE hInstance, UINT uID, LPSTR l
 				"Hydroelectric Dam"))
 				return strlen(lpBuffer);
 			break;
+#if MAP_EDGE_BUILDING == 2
+		case 105:
+			if (!strcpy_s(lpBuffer, cchBufferMax,
+				"Sorry, you cannot\r\nplace items off\r\nthe edge of the map."))
+				return strlen(lpBuffer);
+			break;
+#endif
 		case 108:
 			if (CopyReplacementString(lpBuffer, cchBufferMax,
 				"Hydroelectric dams can only be placed on waterfall tiles."))
@@ -1953,10 +1960,10 @@ extern "C" void __stdcall Hook_MainFrame_UpdateSections() {
 	CMFC3XMenu *pSubMenu;
 	int nMenuItemCount;
 	int nSubMenuItemCount;
-	char szString[960];
+	char szString[80*MAX_CITY_MENUTOOLS];
 	char *pString;
 	char *pTargString;
-	DWORD uIDs[12];
+	DWORD uIDs[MAX_CITY_MENUTOOLS];
 	DWORD *pUID;
 	int nGranted;
 	int nReward;
@@ -2037,7 +2044,7 @@ REFRESHMENUGRANTS:
 				pUID = uIDs;
 				pString = szString;
 				// calculation here is citytoolbuttongroup * maxmenutools, this sets it to CITYTOOL_GROUP_REWARDS.
-				citySubToolStrings = &cityToolGroupStrings[CITYTOOL_GROUP_REWARDS*MAX_CITY_MENUTOOLS];
+				citySubToolStrings = &cityToolGroupStrings[CITY_MENUTOOL_COUNT(CITYTOOL_GROUP_REWARDS)];
 				do {
 					// (1 << nReward) bit-shifted result of the nReward count.
 					nRewardBit = (1 << nReward);
@@ -2323,16 +2330,6 @@ void InstallMiscHooks_SC2K1996(void) {
 	memset((LPVOID)0x4E6130, 0, 13);
 	memcpy_s((LPVOID)0x4E6130, 13, "presnts.bmp", 13);
 
-	// Fix power and water grid updates slowing down after the population hits 50,000
-	VirtualProtect((LPVOID)0x440943, 4, PAGE_EXECUTE_READWRITE, &dwDummy); // 0x440170 <- CityToolMenuAction
-	*(DWORD*)0x440943 = 50000000; // Power
-	VirtualProtect((LPVOID)0x440987, 4, PAGE_EXECUTE_READWRITE, &dwDummy); // 0x440170 <- CityToolMenuAction
-	*(DWORD*)0x440987 = 50000000; // Water
-
-	// Fix the pipe tool not refreshing properly at max zoom
-	//VirtualProtect((LPVOID)0x43F447, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
-	//NEWCALL((LPVOID)0x43F447, 0x402810);		// CSimcityView::UpdateAreaCompleteColorFill
-
 	// Install hooks for saving and loading
 	InstallSaveHooks_SC2K1996();
 
@@ -2343,6 +2340,8 @@ void InstallMiscHooks_SC2K1996(void) {
 	// Hook into the StartCleanGame function.
 	VirtualProtect((LPVOID)0x401F05, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
 	NEWJMP((LPVOID)0x401F05, Hook_StartCleanGame);
+
+	InstallDrawingHooks_SC2K1996();
 
 	InstallTileGrowthOrPlacementHandlingHooks_SC2K1996();
 	
@@ -2547,13 +2546,6 @@ skipgamemenu:
 // The difference between InstallMiscHooks and UpdateMiscHooks is that UpdateMiscHooks can be run
 // again at runtime because it can patch back in original game code. It's used for small stuff.
 void UpdateMiscHooks_SC2K1996(void) {
-	// Music in background
-	//VirtualProtect((LPVOID)0x40BFDA, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
-	//if (bSettingsMusicInBackground)
-	//	memset((LPVOID)0x40BFDA, 0x90, 5);
-	//else {
-	//	BYTE bOriginalCode[5] = { 0xE8, 0xFD, 0x50, 0xFF, 0xFF };
-	//	memcpy_s((LPVOID)0x40BFDA, 5, bOriginalCode, 5);
-	//}
+	UpdateDrawingHooks_SC2K1996();
 }
 

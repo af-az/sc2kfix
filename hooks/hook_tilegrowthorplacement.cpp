@@ -16,9 +16,42 @@
 
 #pragma intrinsic(_ReturnAddress)
 
+#if MAP_EDGE_BUILDING == 2
+#define ABSOLUTE_MIN_EDGE MAP_EDGE_MIN
+#define ABSOLUTE_MAX_EDGE MAP_EDGE_MAX
+
+#define AREA_2x2_MIN_EDGE MAP_EDGE_MIN
+#define AREA_2x2_MAX_EDGE MAP_EDGE_MAX - 1
+
+#define AREA_3x3_MIN_EDGE MAP_EDGE_MIN + 1
+#define AREA_3x3_MAX_EDGE AREA_2x2_MAX_EDGE
+
+#define AREA_4x4_MIN_EDGE AREA_3x3_MIN_EDGE
+#define AREA_4x4_MAX_EDGE MAP_EDGE_MAX - 2
+#else
+
+#if MAP_EDGE_BUILDING == 1
+#define ABSOLUTE_MIN_EDGE MAP_EDGE_MIN
+#define ABSOLUTE_MAX_EDGE MAP_EDGE_MAX
+#else
+#define ABSOLUTE_MIN_EDGE MAP_EDGE_MIN + 1
+#define ABSOLUTE_MAX_EDGE MAP_EDGE_MAX - 1
+#endif
+
+#define AREA_2x2_MIN_EDGE MAP_EDGE_MIN + 1
+#define AREA_2x2_MAX_EDGE MAP_EDGE_MAX - 2
+
+#define AREA_3x3_MIN_EDGE MAP_EDGE_MIN + 2
+#define AREA_3x3_MAX_EDGE AREA_2x2_MAX_EDGE
+
+#define AREA_4x4_MIN_EDGE AREA_3x3_MIN_EDGE
+#define AREA_4x4_MAX_EDGE MAP_EDGE_MAX - 3
+#endif
+
 #define TILEBUILD_DEBUG_OTHER 1
 #define TILEBUILD_DEBUG_SPRITES 2
 #define TILEBUILD_DEBUG_TILESETS 4
+#define TILEBUILD_DEBUG_BUILDING 8
 
 #define TILEBUILD_DEBUG DEBUG_FLAGS_NONE
 
@@ -64,14 +97,16 @@ static int IsValidGeneralPosPlacementMain(__int16 x, __int16 y, __int16 iFarX, _
 		for (iCurY = y; iCurY <= iFarY; ++iCurY) {
 			// if the extended iArea is zero (or below..) and the current X or Y
 			// tiles are equal to or exceed GAME_MAP_SIZE.. definitely abort.
-			if (iArea <= 0 && (iCurX >= GAME_MAP_SIZE || iCurY >= GAME_MAP_SIZE))
-				return 0;
-			else if (iCurX < 1 || iCurY < 1 || iCurX > GAME_MAP_SIZE - 2 || iCurY > GAME_MAP_SIZE - 2) {
+			if (iArea <= 0) {
+				if (iCurX < MAP_EDGE_MIN || iCurY < MAP_EDGE_MIN || iCurX > MAP_EDGE_MAX || iCurY > MAP_EDGE_MAX)
+					return 0;
+			}
+			else if (iCurX < ABSOLUTE_MIN_EDGE || iCurY < ABSOLUTE_MIN_EDGE || iCurX > ABSOLUTE_MAX_EDGE || iCurY > ABSOLUTE_MAX_EDGE) {
 				// Added this due to legacy military plot drops,
 				// this allows > 1x1 type buildings to develop
 				// if the plot is on the edge of the map.
 				if (!bDoSilo) {
-					if (XZONReturnZone(iCurX, iCurY) == ZONE_MILITARY && (iCurX < 0 || iCurY < 0 || iCurX > GAME_MAP_SIZE - 1 || iCurY > GAME_MAP_SIZE - 1))
+					if (XZONReturnZone(iCurX, iCurY) == ZONE_MILITARY && (iCurX < MAP_EDGE_MIN || iCurY < MAP_EDGE_MIN || iCurX > MAP_EDGE_MAX || iCurY > MAP_EDGE_MAX))
 						return 0;
 					else
 						return 0;
@@ -110,11 +145,12 @@ static int IsValidGeneralPosPlacementMain(__int16 x, __int16 y, __int16 iFarX, _
 			//    constantly spawn and despawn resulting
 			//    in many unnecessary calls.
 			if (!bDoSilo) {
-				if (XZONReturnZone(iCurX, iCurY) == ZONE_MILITARY &&
-					(iCurTile == TILE_INFRASTRUCTURE_RUNWAYCROSS ||
+				if (XZONReturnZone(iCurX, iCurY) == ZONE_MILITARY) {
+					if (TILE_IS_MILITARY(iCurTile) ||
 						iCurTile == TILE_ROAD_LR ||
-						iCurTile == TILE_ROAD_TB))
-					return 0;
+						iCurTile == TILE_ROAD_TB)
+						return 0;
+				}
 			}
 			else {
 				if (bSiloPlotCheck) {
@@ -124,12 +160,12 @@ static int IsValidGeneralPosPlacementMain(__int16 x, __int16 y, __int16 iFarX, _
 				else {
 					if (XZONReturnZone(iCurX, iCurY) != ZONE_MILITARY)
 						return 0;
-					if (XZONReturnZone(iCurX, iCurY) == ZONE_MILITARY && 
-						(iCurTile == TILE_INFRASTRUCTURE_RUNWAYCROSS ||
+					else {
+						if (TILE_IS_MILITARY(iCurTile) ||
 							iCurTile == TILE_ROAD_LR ||
-							iCurTile == TILE_ROAD_TB ||
-							iCurTile == TILE_MILITARY_MISSILESILO))
-						return 0;
+							iCurTile == TILE_ROAD_TB)
+							return 0;
+					}
 				}
 			}
 
@@ -426,7 +462,7 @@ static void DoSeaPortGrowth(__int16 iX, __int16 iY, BYTE iCurrentTileID, __int16
 		iSelectedTileID = TILE_INFRASTRUCTURE_CRANE;
 		iFirstCheckedTileID = TILE_INFRASTRUCTURE_CARGOYARD;
 		if (IsTileDividedThresholdReached(iFirstCheckedTileID, wFlaggedTileCount, bMilitary, CMP_LESSTHAN, GetTileArea(AREA_2x2))) {
-			iSelectedTileID = (bMilitary) ? TILE_MILITARY_TOPSECRET : TILE_MILITARY_LOADINGBAY;
+			iSelectedTileID = (bMilitary) ? TILE_MILITARY_TOPSECRET : TILE_INFRASTRUCTURE_LOADINGBAY;
 			if (IsTileDividedThresholdReached(iSelectedTileID, wFlaggedTileCount, bMilitary, CMP_GREATEROREQUAL, GetTileArea(AREA_2x2))) {
 				iSelectedTileID = TILE_MILITARY_WAREHOUSE;
 				if (IsTileDividedThresholdReached(iSelectedTileID, wFlaggedTileCount, bMilitary, CMP_GREATEROREQUAL, 3))
@@ -1068,21 +1104,17 @@ extern "C" int __cdecl Hook_SimulationGrowSpecificZone(__int16 iX, __int16 iY, B
 		}
 		goto PLACEMENT_SUCCESS;
 	case TILE_INFRASTRUCTURE_CRANE:
-		// This check has been added to prevent a condition whereas the crane fails
-		// to be placed as a result of it being on the edge of the map but the pier
-		// itself is still spawned (REVISIT if the various literal edge-cases end
-		// up being overcome!).
-		if ((x <= 0 || x >= GAME_MAP_SIZE - 1) || (y <= 0 || y >= GAME_MAP_SIZE - 1))
+		if (x < MAP_EDGE_MIN || x > MAP_EDGE_MAX || y < MAP_EDGE_MIN || y > MAP_EDGE_MAX)
 			return 0;
 		for (iPierTileCount = 0; iPierTileCount < PIER_MAXTILES; iPierTileCount++) {
 			iMoveX = x + wTilePierLengthWays[iPierTileCount];
-			if (iMoveX < GAME_MAP_SIZE) {
+			if (iMoveX >= MAP_EDGE_MIN && iMoveX <= MAP_EDGE_MAX) {
 				iMoveY = y + wTilePierDepthWays[iPierTileCount];
-				if (iMoveY < GAME_MAP_SIZE && XBITReturnIsWater(iMoveX, iMoveY))
+				if (iMoveY >= MAP_EDGE_MIN && iMoveY <= MAP_EDGE_MAX && XBITReturnIsWater(iMoveX, iMoveY))
 					break;
 			}
 		}
-		if (iPierTileCount == PIER_MAXTILES)
+		if (iPierTileCount == PIER_MAXTILES || iMoveX < MAP_EDGE_MIN || iMoveX > MAP_EDGE_MAX || iMoveY < MAP_EDGE_MIN || iMoveY > MAP_EDGE_MAX)
 			return 0;
 		iMoveY = wTilePierDepthWays[iPierTileCount];
 		if (iMoveY && !IsEven(x))
@@ -1140,7 +1172,7 @@ extern "C" int __cdecl Hook_SimulationGrowSpecificZone(__int16 iX, __int16 iY, B
 		goto PLACEMENT_SUCCESS;
 	case TILE_INFRASTRUCTURE_PARKINGLOT:
 	case TILE_MILITARY_PARKINGLOT:
-	case TILE_MILITARY_LOADINGBAY:
+	case TILE_INFRASTRUCTURE_LOADINGBAY:
 	case TILE_MILITARY_TOPSECRET:
 	case TILE_INFRASTRUCTURE_CARGOYARD:
 	case TILE_INFRASTRUCTURE_HANGAR2:
@@ -1241,6 +1273,228 @@ extern "C" int __cdecl Hook_ItemPlacementCheck(__int16 m_x, __int16 m_y, BYTE iT
 	return L_ItemPlacementCheck(m_x, m_y, iTileID, iTileArea, FALSE);
 }
 
+extern "C" int __cdecl Hook_CityToolPlaceSelectedBuilding(__int16 iX, __int16 iY, __int16 iTool, __int16 iSubTool) {
+	CSimcityAppPrimary *pSCApp;
+	CSimcityView *pSCView;
+	int iItemCost;
+	__int16 iResAreaNearX, iResAreaFarX;
+	__int16 iResAreaNearY, iResAreaFarY;
+	__int16 iResAreaCurX, iResAreaCurY;
+	__int16 nResSelCnt;
+	BOOL bFail, bBadPlacement;
+	BYTE tileFromSubTool[CITY_MENUTOOL_TOTAL];
+	CMFC3XString errString;
+	BYTE iPos;
+	BYTE iTile;
+	BYTE nBuildArea;
+	BYTE iZone;
+	CStadiumSelectTeamDialog stadiumDlg;
+
+	memset(tileFromSubTool, 0, sizeof(tileFromSubTool));
+
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_COAL, CITYTOOL_GROUP_POWER)]             = TILE_POWERPLANT_COAL;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_OIL, CITYTOOL_GROUP_POWER)]              = TILE_POWERPLANT_OIL;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_GAS, CITYTOOL_GROUP_POWER)]              = TILE_POWERPLANT_GAS;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_NUCLEAR, CITYTOOL_GROUP_POWER)]          = TILE_POWERPLANT_NUCLEAR;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_WIND, CITYTOOL_GROUP_POWER)]             = TILE_POWERPLANT_WIND;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_SOLAR, CITYTOOL_GROUP_POWER)]            = TILE_POWERPLANT_SOLAR;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_MICROWAVE, CITYTOOL_GROUP_POWER)]        = TILE_POWERPLANT_MICROWAVE;
+	tileFromSubTool[CITY_MENUTOOL_POS(POWER_PLANTS_FUSION, CITYTOOL_GROUP_POWER)]           = TILE_POWERPLANT_FUSION;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(WATER_PUMP, CITYTOOL_GROUP_WATER)]                    = TILE_INFRASTRUCTURE_WATERPUMP;
+	tileFromSubTool[CITY_MENUTOOL_POS(WATER_TOWER, CITYTOOL_GROUP_WATER)]                   = TILE_INFRASTRUCTURE_WATERTOWER;
+	tileFromSubTool[CITY_MENUTOOL_POS(WATER_TREATMENT, CITYTOOL_GROUP_WATER)]               = TILE_INFRASTRUCTURE_WATERTREATMENT;
+	tileFromSubTool[CITY_MENUTOOL_POS(WATER_DESALINIZATION, CITYTOOL_GROUP_WATER)]          = TILE_INFRASTRUCUTRE_DESALINIZATIONPLANT;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_MAYORSHOUSE, CITYTOOL_GROUP_REWARDS)]         = TILE_INFRASTRUCTURE_MAYORSHOUSE;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_CITYHALL, CITYTOOL_GROUP_REWARDS)]            = TILE_SERVICES_CITYHALL;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_STATUE, CITYTOOL_GROUP_REWARDS)]              = TILE_SERVICES_STATUE;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_BRAUNLLAMADOME, CITYTOOL_GROUP_REWARDS)]      = TILE_OTHER_BRAUNLLAMADOME;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_ARCOLOGIES_PLYMOUTH, CITYTOOL_GROUP_REWARDS)] = TILE_ARCOLOGY_PLYMOUTH;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_ARCOLOGIES_FOREST, CITYTOOL_GROUP_REWARDS)]   = TILE_ARCOLOGY_FOREST;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_ARCOLOGIES_DARCO, CITYTOOL_GROUP_REWARDS)]    = TILE_ARCOLOGY_DARCO;
+	tileFromSubTool[CITY_MENUTOOL_POS(REWARDS_ARCOLOGIES_LAUNCH, CITYTOOL_GROUP_REWARDS)]   = TILE_ARCOLOGY_LAUNCH;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(ROADS_BUSSTATION, CITYTOOL_GROUP_ROADS)]              = TILE_INFRASTRUCTURE_BUSDEPOT;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(RAILS_DEPOT, CITYTOOL_GROUP_RAIL)]                    = TILE_INFRASTRUCTURE_RAILSTATION;
+	tileFromSubTool[CITY_MENUTOOL_POS(RAILS_SUBSTATION, CITYTOOL_GROUP_RAIL)]               = TILE_INFRASTRUCTURE_SUBWAYSTATION;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(EDUCATION_SCHOOL, CITYTOOL_GROUP_EDUCATION)]          = TILE_SERVICES_SCHOOL;
+	tileFromSubTool[CITY_MENUTOOL_POS(EDUCATION_COLLEGE, CITYTOOL_GROUP_EDUCATION)]         = TILE_SERVICES_COLLEGE;
+	tileFromSubTool[CITY_MENUTOOL_POS(EDUCATION_LIBRARY, CITYTOOL_GROUP_EDUCATION)]         = TILE_INFRASTRUCTURE_LIBRARY;
+	tileFromSubTool[CITY_MENUTOOL_POS(EDUCATION_MUSEUM, CITYTOOL_GROUP_EDUCATION)]          = TILE_SERVICES_MUSEUM;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(SERVICES_POLICE, CITYTOOL_GROUP_SERVICES)]            = TILE_SERVICES_POLICE;
+	tileFromSubTool[CITY_MENUTOOL_POS(SERVICES_FIRESTATION, CITYTOOL_GROUP_SERVICES)]       = TILE_SERVICES_FIRE;
+	tileFromSubTool[CITY_MENUTOOL_POS(SERVICES_HOSPITAL, CITYTOOL_GROUP_SERVICES)]          = TILE_SERVICES_HOSPITAL;
+	tileFromSubTool[CITY_MENUTOOL_POS(SERVICES_PRISON, CITYTOOL_GROUP_SERVICES)]            = TILE_SERVICES_PRISON;
+
+	tileFromSubTool[CITY_MENUTOOL_POS(PARKS_SMALLPARK, CITYTOOL_GROUP_PARKS)]               = TILE_SMALLPARK;
+	tileFromSubTool[CITY_MENUTOOL_POS(PARKS_BIGPARK, CITYTOOL_GROUP_PARKS)]                 = TILE_SERVICES_BIGPARK;
+	tileFromSubTool[CITY_MENUTOOL_POS(PARKS_ZOO, CITYTOOL_GROUP_PARKS)]                     = TILE_SERVICES_ZOO;
+	tileFromSubTool[CITY_MENUTOOL_POS(PARKS_STADIUM, CITYTOOL_GROUP_PARKS)]                 = TILE_SERVICES_STADIUM;
+	tileFromSubTool[CITY_MENUTOOL_POS(PARKS_MARINA, CITYTOOL_GROUP_PARKS)]                  = TILE_INFRASTRUCTURE_MARINA;
+
+	GameMain_String_Cons(&errString);
+
+	pSCApp = &pCSimcityAppThis;
+
+	bFail = FALSE;
+	iPos = iSubTool + MAX_CITY_MENUTOOLS * iTool;
+	iItemCost = costFromSubTool[iPos];
+	if (dwCityFunds < iItemCost && iItemCost) {
+		bFail = TRUE;
+		goto FAIL;
+	}
+
+	iTile = tileFromSubTool[iPos];
+	if (!iTile) {
+		bFail = TRUE;
+		goto FAIL;
+	}
+
+	bBadPlacement = FALSE;
+	nBuildArea = areaFromSubTool[iPos];
+	if (nBuildArea >= AREA_1x1 && nBuildArea <= AREA_4x4) {
+		if (nBuildArea == AREA_2x2) {
+			if (iX < AREA_2x2_MIN_EDGE || iX > AREA_2x2_MAX_EDGE ||
+				iY < AREA_2x2_MIN_EDGE || iY > AREA_2x2_MAX_EDGE)
+				bBadPlacement = TRUE;
+			if (tilebuild_debug & TILEBUILD_DEBUG_BUILDING)
+				ConsoleLog(LOG_DEBUG, "AREA_2x2: iX/iY(%d, %d)\n", iX, iY);
+		}
+		else if (nBuildArea == AREA_3x3) {
+			if (iX < AREA_3x3_MIN_EDGE || iX > AREA_3x3_MAX_EDGE ||
+				iY < AREA_3x3_MIN_EDGE || iY > AREA_3x3_MAX_EDGE)
+				bBadPlacement = TRUE;
+			if (tilebuild_debug & TILEBUILD_DEBUG_BUILDING)
+				ConsoleLog(LOG_DEBUG, "AREA_3x3: iX/iY(%d, %d)\n", iX, iY);
+		}
+		else if (nBuildArea == AREA_4x4) {
+			if (iX < AREA_4x4_MIN_EDGE || iX > AREA_4x4_MAX_EDGE ||
+				iY < AREA_4x4_MIN_EDGE || iY > AREA_4x4_MAX_EDGE)
+				bBadPlacement = TRUE;
+			if (tilebuild_debug & TILEBUILD_DEBUG_BUILDING)
+				ConsoleLog(LOG_DEBUG, "AREA_4x4: iX/iY(%d, %d)\n", iX, iY);
+		}
+		else {
+			if (iX < MAP_EDGE_MIN || iX > MAP_EDGE_MAX ||
+				iY < MAP_EDGE_MIN || iY > MAP_EDGE_MAX)
+				bBadPlacement = TRUE;
+			if (tilebuild_debug & TILEBUILD_DEBUG_BUILDING)
+				ConsoleLog(LOG_DEBUG, "AREA_1x1: iX/iY(%d, %d)\n", iX, iY);
+		}
+	}
+	else {
+		bFail = TRUE;
+		goto FAIL;
+	}
+
+	if (bBadPlacement) {
+		bFail = TRUE;
+		GameMain_String_LoadStringA(&errString, 105);
+		GameMain_AfxMessageBoxStr(errString.m_pchData, 0, 0);
+		goto FAIL;
+	}
+
+	if (iTile == SPRITE_SMALL_INFRASTRUCTURE_WATERTREATMENT ||
+		iTile == TILE_POWERPLANT_COAL ||
+		iTile == TILE_POWERPLANT_OIL ||
+		iTile == TILE_POWERPLANT_GAS ||
+		iTile == TILE_POWERPLANT_NUCLEAR ||
+		iTile == TILE_SERVICES_PRISON) {
+		nResSelCnt = 0;
+		iResAreaNearX = iX - 8;
+		iResAreaFarX = iX + nBuildArea + 8;
+		iResAreaNearY = iY - 8;
+		iResAreaFarY = iY + nBuildArea + 8;
+		for (iResAreaCurX = iResAreaNearX; iResAreaCurX < iResAreaFarX; ++iResAreaCurX) {
+			for (iResAreaCurY = iResAreaNearY; iResAreaCurY < iResAreaFarY; ++iResAreaCurY) {
+				if (iResAreaCurX < GAME_MAP_SIZE && iResAreaCurY < GAME_MAP_SIZE) {
+					iZone = XZONReturnZone(iResAreaCurX, iResAreaCurY);
+					if (iZone == ZONE_LIGHT_RESIDENTIAL || iZone == ZONE_DENSE_RESIDENTIAL)
+						++nResSelCnt;
+				}
+			}
+		}
+		if (Game_RandomWordLCGMod(200) < nResSelCnt) {
+			Game_SimcityApp_SoundStopActionThingSound(pSCApp, SOUND_BULLDOZER);
+			Game_SimcityApp_SoundPlaySound(pSCApp, SOUND_BOOS);
+			Game_FailRadioToFileID(403, 106);
+			bFail = TRUE;
+			goto FAIL;
+		}
+	}
+
+	if (!Game_ItemPlacementCheck(iX, iY, iTile, nBuildArea)) {
+		bFail = TRUE;
+		goto FAIL;
+	}
+
+	dwCityFunds -= iItemCost;
+	Game_SimcityDoc_UpdateDocumentTitle(pCSimcityDoc);
+	switch (iTile) {
+		case TILE_SERVICES_HOSPITAL:
+			++pBudgetArr[BUDGET_HEALTH].iCurrentCosts;
+			break;
+		case TILE_SERVICES_POLICE:
+			++pBudgetArr[BUDGET_POLICE].iCurrentCosts;
+			break;
+		case TILE_SERVICES_FIRE:
+			++pBudgetArr[BUDGET_FIRE].iCurrentCosts;
+			break;
+		case TILE_SERVICES_SCHOOL:
+			++pBudgetArr[BUDGET_SCHOOL].iCurrentCosts;
+			break;
+		case TILE_SERVICES_STADIUM:
+			if (XTXTGetTextOverlayID(iX, iY)) {
+				Game_StadiumSelectTeamDialog_Construct(&stadiumDlg, NULL);
+				stadiumDlg.dwSSTDPosX = iX;
+				stadiumDlg.dwSSTDPosY = iY;
+				Game_GameDialog_DoModal(&stadiumDlg);
+				Game_StadiumSelectTeamDialog_Destruct(&stadiumDlg);
+			}
+			break;
+		case TILE_SERVICES_COLLEGE:
+			++pBudgetArr[BUDGET_COLLEGE].iCurrentCosts;
+			break;
+		case TILE_SERVICES_STATUE:
+			if (iX < GAME_MAP_SIZE && iY < GAME_MAP_SIZE)
+				XBITClearBits(iX, iY, XBIT_POWERABLE);
+			break;
+		case TILE_INFRASTRUCTURE_WATERPUMP:
+			Game_PlacePipesAtCoordinates(iX, iY);
+			break;
+		case TILE_INFRASTRUCTURE_SUBWAYSTATION:
+			Game_PlaceSubwayAtCoordinates(iX, iY);
+			Game_PlaceUndergroundTiles(iX, iY, UNDER_TILE_SUBWAYENTRANCE);
+			if (iX < GAME_MAP_SIZE && iY < GAME_MAP_SIZE)
+				XBITClearBits(iX, iY, XBIT_PIPED);
+			pSCView = Game_SimcityApp_PointerToCSimcityViewClass(pSCApp);
+			Game_SimcityView_UpdateAreaCompleteColorFill(pSCView);
+			UpdateWindow(pSCView->m_hWnd);
+			break;
+	}
+
+	if (iX >= MAP_EDGE_MIN) {
+		// Commented out section is to do with the power/water grid updates slowdown case.
+		if (iX < GAME_MAP_SIZE && iY < GAME_MAP_SIZE && XBITReturnIsPowerable(iX, iY)/* && dwCityPopulation < 50000*/)
+			Game_SimulationUpdatePowerConsumption();
+		if (iX < GAME_MAP_SIZE && iY < GAME_MAP_SIZE && XBITReturnIsPiped(iX, iY)/* && dwCityPopulation < 50000*/)
+			Game_SimulationUpdateWaterConsumption();
+	}
+
+	Game_SimcityApp_UpdateStatus(pSCApp, FALSE);
+
+	if (tilebuild_debug & TILEBUILD_DEBUG_BUILDING)
+		ConsoleLog(LOG_DEBUG, "- 0x%06X -> CityToolPlaceSelectedBuilding(%d, %d, %d, %d): iPos(%u) iTile(%u) [%s] iItemCost(%d) nBuildArea(%u)\n", _ReturnAddress(), iX, iY, iTool, iSubTool, iPos, iTile, szTileNames[iTile], iItemCost, nBuildArea);
+
+FAIL:
+	GameMain_String_Dest(&errString);
+	return (bFail) ? 0 : 1;
+}
+
 void InstallTileGrowthOrPlacementHandlingHooks_SC2K1996(void) {
 	// Hook into the SimulationGrowthTick function
 	VirtualProtect((LPVOID)0x4022FC, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
@@ -1257,6 +1511,10 @@ void InstallTileGrowthOrPlacementHandlingHooks_SC2K1996(void) {
 	// Hook into the ItemPlacementCheck function
 	VirtualProtect((LPVOID)0x4027F2, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
 	NEWJMP((LPVOID)0x4027F2, Hook_ItemPlacementCheck);
+
+	// Hook CityToolPlaceSelectedBuilding
+	VirtualProtect((LPVOID)0x401005, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	NEWJMP((LPVOID)0x401005, Hook_CityToolPlaceSelectedBuilding);
 
 	// Military base hooks
 	InstallMilitaryHooks_SC2K1996();

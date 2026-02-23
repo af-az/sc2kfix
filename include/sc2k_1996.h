@@ -59,6 +59,8 @@
 
 #define BITMASK(x) (1 << x)
 
+#define MAP_EDGE_BUILDING 1
+
 // This will get the general RCI zone that's passed
 // without distinguishing between light/dense.
 #define GET_GENERAL_RCI_ZONE(x) ((x - 1) / 2)
@@ -66,6 +68,10 @@
 #define MAX_CITY_INVENTION_YEARS 17
 
 #define MAX_CITY_MENUTOOLS 12
+
+#define CITY_MENUTOOL_COUNT(x) (MAX_CITY_MENUTOOLS * x)
+#define CITY_MENUTOOL_TOTAL CITY_MENUTOOL_COUNT(CITYTOOL_GROUP_COUNT)
+#define CITY_MENUTOOL_POS(x, y) (x + CITY_MENUTOOL_COUNT(y))
 
 #define AREA_1x1 1
 #define AREA_2x2 2
@@ -100,6 +106,9 @@
 #define GROWTH_TILE_MAX_TRIP_STEPS 100
 
 #define GAME_MAP_SIZE 128
+
+#define MAP_EDGE_MIN 0
+#define MAP_EDGE_MAX (GAME_MAP_SIZE - 1)
 
 // Enums
 
@@ -1995,7 +2004,7 @@ enum {
 	TILE_INFRASTRUCTURE_RAILSTATION,
 	TILE_INFRASTRUCTURE_PARKINGLOT,
 	TILE_MILITARY_PARKINGLOT,
-	TILE_MILITARY_LOADINGBAY,
+	TILE_INFRASTRUCTURE_LOADINGBAY,
 	TILE_MILITARY_TOPSECRET,
 	TILE_INFRASTRUCTURE_CARGOYARD,
 	TILE_INFRASTRUCTURE_MAYORSHOUSE,
@@ -2103,9 +2112,12 @@ HOOKEXT const char* szOnIdleStateEnums[ONIDLE_STATE_MAX];
 HOOKEXT const char* szOnIdleInitialDialogEnums[ONIDLE_INITIALDIALOG_MAX];
 
 #define TILE_IS_MILITARY(iTileID) \
-	((iTileID == 0xDD) || (iTileID == 0xDE) || (iTileID == 0xEF) || (iTileID == 0xF2) || (iTileID == 0xEA) || (iTileID == 0xE3) \
-	|| (iTileID == 0xE4) || (iTileID == 0xE5) || (iTileID == 0xF1) || (iTileID == 0xE0) || (iTileID == 0xE2) || (iTileID == 0xE7) \
-	|| (iTileID == 0xE8) || (iTileID == 0xF6) || (iTileID == 0xF9))
+	((iTileID == TILE_INFRASTRUCTURE_RUNWAY) || (iTileID == TILE_INFRASTRUCTURE_RUNWAYCROSS) || (iTileID == TILE_MILITARY_PARKINGLOT) || \
+	(iTileID == TILE_INFRASTRUCTURE_CARGOYARD) || (iTileID == TILE_MILITARY_RADAR) || (iTileID == TILE_MILITARY_WAREHOUSE) || \
+	(iTileID == TILE_INFRASTRUCTURE_BUILDING1) || (iTileID == TILE_INFRASTRUCTURE_BUILDING2) || (iTileID == TILE_MILITARY_TOPSECRET) || \
+	(iTileID == TILE_INFRASTRUCTURE_PIER) || (iTileID == TILE_INFRASTRUCTURE_CRANE) || (iTileID == TILE_MILITARY_CONTROLTOWER) || \
+	(iTileID == TILE_MILITARY_F15B) || (iTileID == TILE_MILITARY_HANGAR1) || (iTileID == TILE_INFRASTRUCTURE_HANGAR2) || \
+	(iTileID == TILE_MILITARY_MISSILESILO))
 
 // XTER map
 //
@@ -2327,6 +2339,16 @@ enum {
 };
 
 enum {
+	TRACE_ACTION_ROADS,
+	TRACE_ACTION_RAILS,
+	TRACE_ACTION_WIRES,
+	TRACE_ACTION_SUBWAY,
+	TRACE_ACTION_PIPES,
+	TRACE_ACTION_ZONES,
+	TRACE_ACTION_ARMYROADS
+};
+
+enum {
 	LAYER_UNDERGROUND,
 	LAYER_ZONES,
 	LAYER_INFRANATURE,
@@ -2400,7 +2422,9 @@ enum {
 	CITYTOOL_GROUP_PARKS,
 	CITYTOOL_GROUP_SIGNS,
 	CITYTOOL_GROUP_QUERY,
-	CITYTOOL_GROUP_CENTERINGTOOL
+	CITYTOOL_GROUP_CENTERINGTOOL,
+
+	CITYTOOL_GROUP_COUNT
 };
 
 enum
@@ -2505,7 +2529,7 @@ enum {
 	REWARDS_ARCOLOGIES,
 	REWARDS_ARCOLOGIES_PLYMOUTH,
 	REWARDS_ARCOLOGIES_FOREST,
-	REWARDS_ARCOLOGIES_DRACO,
+	REWARDS_ARCOLOGIES_DARCO,
 	REWARDS_ARCOLOGIES_LAUNCH,
 
 	REWARDS_COUNT
@@ -2653,7 +2677,9 @@ enum {
 	VIEWROTATION_NORTH = 0,
 	VIEWROTATION_EAST,
 	VIEWROTATION_SOUTH,
-	VIEWROTATION_WEST
+	VIEWROTATION_WEST,
+
+	VIEWROTATION_COUNT
 };
 
 enum {
@@ -2675,6 +2701,22 @@ enum {
 
 	DEMAND_COUNT
 };
+
+enum {
+	EDIT_DATA_NONE,
+	EDIT_DATA_TRAFFIC,
+	EDIT_DATA_POPDENSITY,
+	EDIT_DATA_RATEOFGROWTH1,
+	EDIT_DATA_CRIMERATE,
+	EDIT_DATA_POLICEPWR,
+	EDIT_DATA_POLLUTION,
+	EDIT_DATA_LANDVALUE,
+	EDIT_DATA_FIREPWR,
+	EDIT_DATA_POWERED,
+	EDIT_DATA_WATERED,
+	EDIT_DATA_RATEOFGROWTH2,
+};
+
 
 // Structs
 
@@ -2847,10 +2889,12 @@ GAMECALL(0x401005, int, __cdecl, CityToolPlaceSelectedBuilding, __int16, __int16
 GAMECALL(0x40103C, int, __thiscall, MainFrame_ToggleToolBars, CMainFrame *pThis, int iShow)
 GAMECALL(0x40104B, void, __cdecl, PlacePoliceDispatchUnit, __int16, __int16)
 GAMECALL(0x40106E, int, __cdecl, PlaceRoadAtCoordinates, __int16 x, __int16 y)
+GAMECALL(0x401073, void, __cdecl, PlacePipesAtCoordinates, __int16 x, __int16 y)
 GAMECALL(0x401096, int, __thiscall, SimcityApp_SoundPlaySound, CSimcityAppPrimary* pThis, int iSoundID)
 GAMECALL(0x4010A5, void, __stdcall, UpdateGraphDialog, void)
 GAMECALL(0x4010D2, int, __thiscall, SimcityView_CityToolSetSelectedZone, CSimcityView *, __int16, __int16, __int16, __int16)
 GAMECALL(0x4010DC, void, __thiscall, SimcityApp_MusicTrigger, CSimcityAppPrimary *)
+GAMECALL(0x4010FA, void, __thiscall, StadiumSelectTeamDialog_Destruct, CStadiumSelectTeamDialog *)
 GAMECALL(0x401104, int, __cdecl, MovieOpen, char *)
 GAMECALL(0x40113B, int, __thiscall, SimcityView_CityToolPlacePowerLine, CSimcityView *, __int16, __int16)
 GAMECALL(0x401140, void, __thiscall, MapToolBar_ResetControls, CMapToolBar *)
@@ -2866,6 +2910,7 @@ GAMECALL(0x401262, void, __stdcall, SimulationEQ_LE_Processing, void)
 GAMECALL(0x4012B2, int, __thiscall, CityToolBar_PressButton, CCityToolBar *, int)
 GAMECALL(0x4012C1, int, __cdecl, SpawnItem, __int16 x, __int16 y)
 GAMECALL(0x4012DF, void, __stdcall, DecreaseWaterLevel, void)
+GAMECALL(0x4012F8, __int16, __cdecl, GetDestDistance, __int16, __int16, __int16, __int16)
 GAMECALL(0x4012FD, void, __cdecl, UpdateSimNationDialog, void)
 GAMECALL(0x401393, int, __cdecl, DrawProcessObject, __int16, __int16, __int16, __int16, __int16)
 GAMECALL(0x4013B1, void, __thiscall, SimcityView_ScaleOut, CSimcityView *pThis)
@@ -2906,12 +2951,12 @@ GAMECALL(0x40191F, void, __cdecl, DoFund, __int16)
 GAMECALL(0x401951, void, __thiscall, Graphics_DeleteObject, CGraphics *)
 GAMECALL(0x40198D, int, __cdecl, MapToolPlaceStream, __int16 iTileTargetX, __int16 iTileTargetY, __int16) // XXX - the last parameter isn't entirely clear, perhaps area or offset?
 GAMECALL(0x401997, int, __cdecl, MapToolPlaceWater, __int16 iTileTargetX, __int16 iTileTargetY)
-GAMECALL(0x4019A1, char, __cdecl, CheckAndAdjustTraversableTerrain, __int16 x, __int16 y)
+GAMECALL(0x4019A1, char, __cdecl, TraceEdit, __int16 x, __int16 y)
 GAMECALL(0x4019B5, void, __thiscall, CurrencyString_TruncateAtSpace, CCurrencyString *)
 GAMECALL(0x4019EC, int, __cdecl, CenterOnTileCoords, __int16 x, __int16 y)
 GAMECALL(0x401A1E, void, __thiscall, Graphics_SetColorTableFromApplicationPalette, CGraphics *)
 GAMECALL(0x401A2D, int, __thiscall, SimcityView_CityToolPlaceHighway, CSimcityView*, __int16, __int16)
-GAMECALL(0x401A37, int, __cdecl, MaybeRoadViabilityAlongPath, __int16* x, __int16* y)
+GAMECALL(0x401A37, int, __cdecl, StepTrace, __int16* x, __int16* y)
 GAMECALL(0x401A3C, char, __cdecl, PerhapsGeneralZoneStartBuilding, signed __int16 x, signed __int16 y, __int16 iBuildingPopLevel, __int16 iZoneType)
 GAMECALL(0x401A73, void, __thiscall, SimcityView_RotateAntiClockwise, CSimcityView *pThis)
 GAMECALL(0x401A96, void, __thiscall, SimcityView_MaintainCursor, CSimcityView *)
@@ -2919,7 +2964,7 @@ GAMECALL(0x401A9B, void, __thiscall, SimcityApp_MusicPlayNextRefocusSong, CSimci
 GAMECALL(0x401AAA, int, __thiscall, SimcityView_CityToolPlaceRail, CSimcityView*, __int16, __int16)
 GAMECALL(0x401AB4, int, __cdecl, MapToolRaiseTerrain, __int16 iTileTargetX, __int16 iTileTargetY)
 GAMECALL(0x401AC8, void, __thiscall, MapToolBar_AdjustSlider, CMapToolBar *, UINT, CMFC3XPoint *)
-GAMECALL(0x401AF0, int, __cdecl, MaybeCheckViablePlacementPath, __int16 x1, __int16 y1, __int16 x2, __int16 y2)
+GAMECALL(0x401AF0, int, __cdecl, BeginTrace, __int16 x1, __int16 y1, __int16 x2, __int16 y2)
 GAMECALL(0x401B04, int, __cdecl, CityToolPlaceOnRamp, __int16, __int16)
 GAMECALL(0x401B40, int, __cdecl, IsZonedTilePowered, __int16 x, __int16 y)
 GAMECALL(0x401B4F, BOOL, __stdcall, MovieCreateWindow)
@@ -2932,7 +2977,8 @@ GAMECALL(0x401C0D, void, __thiscall, SimcityView_DebugGrantAllGifts, CSimcityVie
 GAMECALL(0x401C80, void, __thiscall, Graphics_Set16ColorTable, CGraphics *)
 GAMECALL(0x401C99, void, __cdecl, FreeDataEntry, void *)
 GAMECALL(0x401CA8, void, __stdcall, SimulationUpdateWaterConsumption, void)
-GAMECALL(0x401CCB, int, __stdcall, ResetTileDirection, void)
+GAMECALL(0x401CCB, int, __stdcall, EndTrace, void)
+GAMECALL(0x401CE9, void, __thiscall, SimcityApp_SoundStopActionThingSound, CSimcityAppPrimary *, int)
 GAMECALL(0x401CFD, void, __cdecl, QuerySpecificItem, __int16, __int16)
 GAMECALL(0x401D16, __int16, __cdecl, GetTileCoordsFromScreenCoords, __int16 x, __int16 y)
 GAMECALL(0x401D3E, int, __thiscall, MainFrame_CloseInflightDialog, CMainFrame *)
@@ -2948,11 +2994,12 @@ GAMECALL(0x401E47, BOOL, __cdecl, UseBulldozer, __int16 iTileTargetX, __int16 iT
 GAMECALL(0x401E51, int, __thiscall, SimcityView_CityToolPlaceWaterPipe, CSimcityView *, __int16, __int16)
 GAMECALL(0x401E65, void, __stdcall, UpdateWeatherOrDisasterState, void)
 GAMECALL(0x401EA1, int, __cdecl, MapToolLowerTerrain, __int16 iTileTargetX, __int16 iTileTargetY)
-GAMECALL(0x401F23, CNewspaperDialog *, __thiscall, NewspaperDialog_Construct, CNewspaperDialog *, CMFC3XWnd *)
+GAMECALL(0x401F23, CNewspaperDialog *, __thiscall, NewspaperDialog_Construct, CNewspaperDialog *, CMainFrame *)
 GAMECALL(0x401F9B, int, __stdcall, LoadSoundIntoBuffer, int iSoundID, void *lpBuffer)
 GAMECALL(0x401FA0, int, __cdecl, CheckAdjustTerrainAndPlacePowerLines, __int16 x, __int16 y)
 GAMECALL(0x402022, void, __stdcall, UpdateGraphData, void)
 GAMECALL(0x402045, void *, __cdecl, AllocateDataEntry, size_t iSz)
+GAMECALL(0x402095, void, __cdecl, DrawLargeTile, __int16, __int16, int, int)
 GAMECALL(0x40209F, __int16, __cdecl, SpawnTrain, __int16 x, __int16 y)
 GAMECALL(0x4020B8, void, __thiscall, SimcityView_MakeTerrain, CSimcityView *, int, int, __int16, __int16, __int16)
 GAMECALL(0x40210D, void, __thiscall, SimcityApp_AdjustNewspaperMenu, CSimcityAppPrimary *)
@@ -2974,6 +3021,7 @@ GAMECALL(0x40232E, void, __thiscall, MapToolBar_MoveAndBlitToolBar, CMapToolBar 
 GAMECALL(0x40235B, int, __thiscall, SimcityView_DrawSquareHighlight, CSimcityView *pThis, WORD wX1, WORD wY1, WORD wX2, WORD wY2)
 GAMECALL(0x402360, BOOL, __cdecl, MovieCheck, char *)
 GAMECALL(0x40239C, void, __cdecl, UpdateCityMap, void)
+GAMECALL(0x4023AB, void, __cdecl, DrawProcessMaskObject, __int16, __int16, __int16, __int16)
 GAMECALL(0x4023B0, int, __cdecl, IsValidTransitItems, __int16 x, __int16 y)
 GAMECALL(0x4023D3, void, __cdecl, ToggleColorCycling, CMFC3XPalette *, BOOL)
 GAMECALL(0x4023D8, void, __thiscall, SimcityApp_LoadScenario, CSimcityAppPrimary *)
@@ -3047,17 +3095,22 @@ GAMECALL(0x402C11, CGraphics *, __thiscall, Graphics_Cons, CGraphics *)
 GAMECALL(0x402C25, int, __cdecl, CityToolMenuAction, int iMouseKeys, POINT pt)
 GAMECALL(0x402C34, BOOL, __thiscall, MainFrame_LoadGraphic, CMainFrame *, const char *)
 GAMECALL(0x402C3E, int, __thiscall, CityToolBar_HitTestFromPoint, CCityToolBar *, CMFC3XPoint)
+GAMECALL(0x402C4D, void, __cdecl, FailRadioToFileID, int, UINT)
 GAMECALL(0x402CF2, void, __thiscall, SimcityApp_SetGameCursor, CSimcityAppPrimary *pThis, int iNewCursor, BOOL bActive)
 GAMECALL(0x402D2E, void, __stdcall, UpdateBudgetInformation, void)
 GAMECALL(0x402D51, void, __stdcall, SimulationUpdateMonthlyTrafficData, void)
 GAMECALL(0x402D56, BYTE, __stdcall, PrepareLabel, void)
+GAMECALL(0x402D97, CStadiumSelectTeamDialog *, __thiscall, StadiumSelectTeamDialog_Construct, CStadiumSelectTeamDialog *, CMainFrame *)
+GAMECALL(0x402D9C, void, __cdecl, DrawUnderTile, __int16, __int16)
 GAMECALL(0x402DA1, BYTE *, __thiscall, Graphics_LockDIBBits, CGraphics *)
 GAMECALL(0x402DF1, void, __thiscall, Graphics_Paint, CGraphics *, HDC, int, int)
 GAMECALL(0x402E19, void, __cdecl, QueryGeneralItem, __int16, __int16)
+GAMECALL(0x402E73, void, __cdecl, DrawLabelsAndObjects, __int16, __int16, __int16, __int16)
 GAMECALL(0x402E96, void, __thiscall, SimcityApp_GetToolSound, CSimcityAppPrimary *)
 GAMECALL(0x402EA0, int, __cdecl, CityToolPlacePowerHydroDam, __int16, __int16)
 GAMECALL(0x402EFA, int, __stdcall, GetSimcityViewMenuPos, int iPos)
 GAMECALL(0x402F18, void, __thiscall, MainFrame_UpdateCityToolBar, CMainFrame *)
+GAMECALL(0x402F4A, void, __cdecl, PlaceSubwayAtCoordinates, __int16 x, __int16 y)
 GAMECALL(0x402F4F, void, __thiscall, SimcityApp_GetValueStringA, CSimcityAppPrimary *, CMFC3XString *, const char *, const char *)
 GAMECALL(0x402F9A, void, __thiscall, SimcityView_GetScreenAreaInfo, CSimcityView *pThis, LPRECT lpRect)
 GAMECALL(0x402FAE, BOOL, __thiscall, MainFrame_DeleteGraphic, CMainFrame *, BOOL)
@@ -3154,7 +3207,7 @@ GAMECALL_MAIN(0x4AE0BC, void, __thiscall, Document_UpdateAllViews, CMFC3XDocumen
 GAMECALL_MAIN(0x4AE16C, BOOL, __thiscall, Document_OnCmdMsg, CMFC3XDocument *, UINT nID, int nCode, void *pExtra, void *pHandlerInfo)
 GAMECALL_MAIN(0x4AE83A, BOOL, __thiscall, View_OnCmdMsg, CMFC3XView *, UINT nID, int nCode, void *pExtra, void *pHandlerInfo)
 GAMECALL_MAIN(0x4B2206, int, __thiscall, WinApp_DoMessageBox, CMFC3XWinApp *pThis, const char *lpszPrompt, UINT nType, UINT nIDPrompt)
-GAMECALL_MAIN(0x4B232F, int, __stdcall, AfxMessageBoxStr, LPCTSTR lpszPrompt, UINT nType, UINT nIDHelp)
+GAMECALL_MAIN(0x4B232F, int, __stdcall, AfxMessageBoxStr, LPCSTR lpszPrompt, UINT nType, UINT nIDHelp)
 GAMECALL_MAIN(0x4B234F, int, __stdcall, AfxMessageBoxID, UINT nIDPrompt, UINT nType, UINT nIDHelp)
 GAMECALL_MAIN(0x4B5801, int, __thiscall, DialogBar_Create, CMFC3XDialogBar *pThis, CMFC3XWnd *pParentWnd, const char *lpszTemplateName, UINT nStyle, UINT nID)
 GAMECALL_MAIN(0x4B780A, BOOL, __thiscall, MDIFrameWnd_OnCmdMsg, CMFC3XMDIFrameWnd *, UINT nID, int nCode, void *pExtra, void *pHandlerInfo)
@@ -3186,8 +3239,17 @@ GAMEOFF(WORD,	wViewInitialCoordY,			0x4C7CB4)
 GAMEOFF(WORD,	wViewInitialZoom,			0x4C7CB8)
 GAMEOFF(RECT,	currWndClientRect,			0x4C7CD0)
 GAMEOFF(WORD,	wCurrentAngle,				0x4C7CF8)
-GAMEOFF(WORD,	wTileDirection,				0x4C7D60)
-GAMEOFF(WORD,	wMaybeActiveToolGroup,		0x4C7D88)
+GAMEOFF(RECT,	rcDst,						0x4C7D08)
+GAMEOFF(WORD,	wCurrentPositionAngle,		0x4C7D18)
+GAMEOFF(WORD,	g_wColorSpriteStart,		0x4C7D1C)
+GAMEOFF(WORD,	g_wColorMapYOffs,			0x4C7D20)
+GAMEOFF(WORD,	g_wColorLandAltScale,		0x4C7D24)
+GAMEOFF(WORD,	g_wColorScale,				0x4C7D28)
+GAMEOFF(WORD,	g_wColorMapXOffs,			0x4C7D2C)
+GAMEOFF(WORD,	g_iColorMapOffSetX,			0x4C7D30)
+GAMEOFF(WORD,	g_iColorMapOffSetY,			0x4C7D34)
+GAMEOFF(WORD,	traceDir,				0x4C7D60)
+GAMEOFF(WORD,	traceAction,		0x4C7D88)
 GAMEOFF(WORD,	wMilitaryAvailDispatch,			0x4C7D98)
 GAMEOFF(WORD,	wFireAvailDispatch,				0x4C7D9C)
 GAMEOFF(WORD,	wPoliceAvailDispatch,			0x4C838C)
@@ -3220,11 +3282,13 @@ GAMEOFF(WORD,	wIndustrialMixBonus,		0x4CA1E8)
 GAMEOFF(WORD,	wCurrentMapToolGroup,		0x4CA1EC)
 GAMEOFF(WORD,	wCityNeighborConnections1500,	0x4CA3F0)
 GAMEOFF(WORD*,	wArrIndustrialDemands,		0x4CA3F4)
+GAMEOFF(WORD,	EditData,					0x4CA404)
 GAMEOFF(WORD,	wSubwayXUNDCount,			0x4CA41C)
 GAMEOFF(WORD,	wSetTriggerDisasterType,	0x4CA420)
 GAMEOFF(DWORD*,	pZonePops,					0x4CA428)
 GAMEOFF(WORD,	wCityMode,					0x4CA42C)
 GAMEOFF(WORD,	wOldArrests,				0x4CA430)
+GAMEOFF(COLORREF,	colGameBackgndAbove,	0x4CA43C)
 GAMEOFF(int,	dwCityLandValue,			0x4CA440)
 GAMEOFF(int,	dwCityFunds,				0x4CA444)
 GAMEOFF(WORD*, dwTileCount,					0x4CA4C8)		// WORD dwTileCount[256]
@@ -3251,11 +3315,14 @@ GAMEOFF(WORD,	wCityTerrainSliderWater,	0x4CAAF8)
 GAMEOFF(DWORD,	pSomeWnd,					0x4CAC18)		// Perhaps this is the active view window? (unclear - but this is referenced in the native TileHighlightUpdate function)
 GAMEOFF(DWORD*, dwNeighborPopulation,		0x4CAD10)		// DWORD dwNeighborPopulation[4]
 GAMEOFF(BOOL,	bMainFrameInactive,			0x4CAD14)
+GAMEOFF(__int16,	iScreenOffSetX,			0x4CAD18)
+GAMEOFF(__int16,	iScreenOffSetY,			0x4CAD1C)
+GAMEOFF(COLORREF,	colGameBackgndUnder,	0x4CAD20)
 GAMEOFF(BYTE*,	bArrNewspaperTable1,		0x4CAD24)
 GAMEOFF(DWORD,	dwCityFame,					0x4CAD28)		// Unused in vanilla game
 GAMEOFF(BOOL,	bYearEndFlag,				0x4CAD2C)
-GAMEOFF(WORD,	wScreenPointX,				0x4CAD30)		// Used here in MapToolMenuAction
-GAMEOFF(WORD,	wScreenPointY,				0x4CAD34)		// Used here in MapToolMenuAction
+GAMEOFF(__int16,	iScreenPointX,			0x4CAD30)		// Used here in MapToolMenuAction
+GAMEOFF(__int16,	iScreenPointY,			0x4CAD34)		// Used here in MapToolMenuAction
 GAMEOFF(BOOL,	bInScenario,				0x4CAD44)
 GAMEOFF_ARR(char, szNeighborNameSouth,		0x4CAD58)		// char[32]
 GAMEOFF_ARR(char, szNeighborNameWest,		0x4CAD78)		// char[32]
@@ -3337,6 +3404,8 @@ GAMEOFF(HWND,	hWndMovieCap,				0x4CE7E8)
 GAMEOFF(HWND,	hWndMovie,					0x4CE7EC)
 GAMEOFF(MFC3X_AFX_CORE_STATE,	game_AfxCoreState,			0x4CE8C0)
 GAMEOFF(HINSTANCE,	hGameModule,			0x4CE8C8)
+GAMEOFF_ARR(BYTE,	areaFromSubTool,		0x4DC068)
+GAMEOFF_ARR(DWORD,	costFromSubTool,		0x4DC140)
 GAMEOFF_ARR(WORD,	wPositionAngle,			0x4DC4C8)
 GAMEOFF(BOOL,	bCSAMainFrameDirectReleaseCapture,	0x4E6000)
 GAMEOFF(DWORD,	dwMovieClassRegistered,		0x4E6004)
@@ -3375,8 +3444,11 @@ GAMEOFF_ARR(sprite_archive_stored_t,	dwBaseSpriteLoading,		0x4E7448)
 GAMEOFF_ARR(WORD,	wBuildingPopLevel,		0x4E7458)
 GAMEOFF_ARR(BYTE,	bTileState,				0x4E7508)
 GAMEOFF_ARR(WORD,	wBuildingPopulation,	0x4E75B0)
-GAMEOFF_ARR(WORD, wXTERToSpriteIDMap,		0x4E7628)
+GAMEOFF_ARR(WORD, nXTERTileIDs,				0x4E7628)
 GAMEOFF_ARR(WORD, wXTERToXUNDSpriteIDMap,	0x4E76B8)
+GAMEOFF_ARR(BYTE,	trafficSpriteOffsets,	0x4E772B)
+GAMEOFF_ARR(BYTE,	trafficSpriteOverlayLevels,	0x4E7798)
+GAMEOFF_ARR(BYTE,	BuiltUpZones,			0x4E77B8)
 GAMEOFF(DWORD,	dwPlacePoliceThingFail,		0x4E7FC4)
 GAMEOFF(DWORD,	dwPlaceFireThingFail,		0x4E7FC8)
 GAMEOFF(DWORD,	dwPlaceMilitaryThingFail,	0x4E7FCC)
@@ -3623,6 +3695,134 @@ static inline WORD GetTileArea(WORD iTileArea) {
 		iTileArea = AREA_4x4;
 
 	return iTileArea * iTileArea;
+}
+
+enum {
+	COVERAGE_1x1,
+	COVERAGE_2x2,
+	COVERAGE_3x3,
+	COVERAGE_4x4,
+
+	COVERAGE_COUNT
+};
+
+static inline BYTE GetTileCoverage(BYTE iTileID) {
+	switch (iTileID) {
+		case TILE_HIGHWAY_HTB:
+		case TILE_HIGHWAY_LHR:
+		case TILE_HIGHWAY_THB:
+		case TILE_HIGHWAY_HLR:
+		case TILE_HIGHWAY_BR:
+		case TILE_HIGHWAY_BL:
+		case TILE_HIGHWAY_TL:
+		case TILE_HIGHWAY_TR:
+		case TILE_HIGHWAY_LTBR:
+		case TILE_REINFORCED_BRIDGE_PYLON:
+		case TILE_REINFORCED_BRIDGE:
+		case TILE_RESIDENTIAL_2X2_SMALLAPARTMENTS1:
+		case TILE_RESIDENTIAL_2X2_SMALLAPARTMENTS2:
+		case TILE_RESIDENTIAL_2X2_SMALLAPARTMENTS3:
+		case TILE_RESIDENTIAL_2X2_MEDIUMAPARTMENTS1:
+		case TILE_RESIDENTIAL_2X2_MEDIUMAPARTMENTS2:
+		case TILE_RESIDENTIAL_2X2_MEDIUMCONDOS1:
+		case TILE_RESIDENTIAL_2X2_MEDIUMCONDOS2:
+		case TILE_RESIDENTIAL_2X2_MEDIUMCONDOS3:
+		case TILE_COMMERCIAL_2X2_SHOPPINGCENTER:
+		case TILE_COMMERCIAL_2X2_GROCERYSTORE:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE1:
+		case TILE_COMMERCIAL_2X2_RESORTHOTEL:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE2:
+		case TILE_COMMERCIAL_2X2_OFFICERETAIL:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE3:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE4:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE5:
+		case TILE_COMMERCIAL_2X2_MEDIUMOFFICE6:
+		case TILE_INDUSTRIAL_2X2_MEDIUMWAREHOUSE:
+		case TILE_INDUSTRIAL_2X2_CHEMICALPROCESSING:
+		case TILE_INDUSTRIAL_2X2_FACTORY1:
+		case TILE_INDUSTRIAL_2X2_FACTORY2:
+		case TILE_INDUSTRIAL_2X2_FACTORY3:
+		case TILE_INDUSTRIAL_2X2_FACTORY4:
+		case TILE_INDUSTRIAL_2X2_FACTORY5:
+		case TILE_INDUSTRIAL_2X2_FACTORY6:
+		case TILE_MISC_2X2_CONSTRUCTION1:
+		case TILE_MISC_2X2_CONSTRUCTION2:
+		case TILE_MISC_2X2_CONSTRUCTION3:
+		case TILE_MISC_2X2_CONSTRUCTION4:
+		case TILE_MISC_2X2_ABANDONED1:
+		case TILE_MISC_2X2_ABANDONED2:
+		case TILE_MISC_2X2_ABANDONED3:
+		case TILE_MISC_2X2_ABANDONED4:
+		case TILE_INFRASTRUCTURE_WATERTOWER:
+		case TILE_INFRASTRUCTURE_BUSDEPOT:
+		case TILE_INFRASTRUCTURE_RAILSTATION:
+		case TILE_INFRASTRUCTURE_PARKINGLOT:
+		case TILE_MILITARY_PARKINGLOT:
+		case TILE_INFRASTRUCTURE_LOADINGBAY:
+		case TILE_MILITARY_TOPSECRET:
+		case TILE_INFRASTRUCTURE_CARGOYARD:
+		case TILE_INFRASTRUCTURE_MAYORSHOUSE:
+		case TILE_INFRASTRUCTURE_WATERTREATMENT:
+		case TILE_INFRASTRUCTURE_LIBRARY:
+		case TILE_INFRASTRUCTURE_HANGAR2:
+		case TILE_INFRASTRUCTURE_CHURCH:
+			return COVERAGE_2x2;
+		case TILE_RESIDENTIAL_3X3_LARGEAPARTMENTS1:
+		case TILE_RESIDENTIAL_3X3_LARGEAPARTMENTS2:
+		case TILE_RESIDENTIAL_3X3_LARGECONDOS1:
+		case TILE_RESIDENTIAL_3X3_LARGECONDOS2:
+		case TILE_COMMERCIAL_3X3_OFFICEPARK:
+		case TILE_COMMERCIAL_3X3_OFFICETOWER1:
+		case TILE_COMMERCIAL_3X3_MINIMALL:
+		case TILE_COMMERCIAL_3X3_THEATERSQUARE:
+		case TILE_COMMERCIAL_3X3_DRIVEINTHEATER:
+		case TILE_COMMERCIAL_3X3_OFFICETOWER2:
+		case TILE_COMMERCIAL_3X3_OFFICETOWER3:
+		case TILE_COMMERCIAL_3X3_PARKINGLOT:
+		case TILE_COMMERCIAL_3X3_HISTORICOFFICE:
+		case TILE_COMMERCIAL_3X3_CORPORATEHQ:
+		case TILE_INDUSTRIAL_3X3_CHEMICALPROCESSING:
+		case TILE_INDUSTRIAL_3X3_LARGEFACTORY:
+		case TILE_INDUSTRIAL_3X3_THINGAMAJIG:
+		case TILE_INDUSTRIAL_3X3_MEDIUMFACTORY:
+		case TILE_INDUSTRIAL_3X3_LARGEWAREHOUSE1:
+		case TILE_INDUSTRIAL_3X3_LARGEWAREHOUSE2:
+		case TILE_MISC_3X3_CONSTRUCTION1:
+		case TILE_MISC_3X3_CONSTRUCTION2:
+		case TILE_MISC_3X3_ABANDONED1:
+		case TILE_MISC_3X3_ABANDONED2:
+		case TILE_SERVICES_CITYHALL:
+		case TILE_SERVICES_HOSPITAL:
+		case TILE_SERVICES_POLICE:
+		case TILE_SERVICES_FIRE:
+		case TILE_SERVICES_MUSEUM:
+		case TILE_SERVICES_BIGPARK:
+		case TILE_SERVICES_SCHOOL:
+		case TILE_INFRASTRUCTURE_MARINA:
+		case TILE_MILITARY_MISSILESILO:
+		case TILE_INFRASTRUCUTRE_DESALINIZATIONPLANT:
+			return COVERAGE_3x3;
+		case TILE_POWERPLANT_GAS:
+		case TILE_POWERPLANT_OIL:
+		case TILE_POWERPLANT_NUCLEAR:
+		case TILE_POWERPLANT_SOLAR:
+		case TILE_POWERPLANT_MICROWAVE:
+		case TILE_POWERPLANT_FUSION:
+		case TILE_POWERPLANT_COAL:
+		case TILE_SERVICES_STADIUM:
+		case TILE_SERVICES_PRISON:
+		case TILE_SERVICES_COLLEGE:
+		case TILE_SERVICES_ZOO:
+		case TILE_ARCOLOGY_PLYMOUTH:
+		case TILE_ARCOLOGY_FOREST:
+		case TILE_ARCOLOGY_DARCO:
+		case TILE_ARCOLOGY_LAUNCH:
+		case TILE_OTHER_BRAUNLLAMADOME:
+			return COVERAGE_4x4;
+		default:
+			break;
+	}
+	return COVERAGE_1x1;
 }
 
 static inline BYTE GetMilitaryFromNormalTile(BYTE iTileID) {
