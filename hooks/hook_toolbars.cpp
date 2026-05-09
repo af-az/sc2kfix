@@ -349,10 +349,10 @@ extern "C" void __stdcall Hook_CityToolBar_SetSelection(DWORD nIndex, DWORD nSub
 			Game_MainFrame_ToggleNonModalDialog((CMainFrame *)pSCApp->m_pMainWnd, 160);
 			break;
 		case CITYTOOL_BUTTON_BUDGET:
-			bCurrentBudgetSetting = jsonSettingsCore[C_SIMCITY2000][S_SIM_OPTIONS][I_SIM_OPT_AUTOBUDGET].ToInt();
-			jsonSettingsCore[C_SIMCITY2000][S_SIM_OPTIONS][I_SIM_OPT_AUTOBUDGET] = 0;
+			bCurrentBudgetSetting = bOptionsAutoBudget;
+			bOptionsAutoBudget = 0;
 			Game_SimulationPrepareBudgetDialog(0);
-			jsonSettingsCore[C_SIMCITY2000][S_SIM_OPTIONS][I_SIM_OPT_AUTOBUDGET] = bCurrentBudgetSetting;
+			bOptionsAutoBudget = bCurrentBudgetSetting;
 			Game_MyToolBar_SetButtonStyle(pThis, CITYTOOL_BUTTON_BUDGET, 0);
 			break;
 		case CITYTOOL_BUTTON_DISPLAYBUILDINGS:
