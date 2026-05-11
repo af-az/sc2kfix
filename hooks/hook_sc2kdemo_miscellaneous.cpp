@@ -224,12 +224,12 @@ void InstallMiscHooks_SC2KDemo(void) {
 	InstallRegistryPathingHooks_SC2KDemo();
 
 	// Fix the 'Arial" font
-	VirtualProtect((LPVOID)0x4CF130, 6, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4CF130, 6, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4CF130, 0, 6);
 	memcpy_s((LPVOID)0x4CF130, 6, "Arial", 6);
-	VirtualProtect((LPVOID)0x4403A3, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4403A3, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x4403A3 = 5;
-	VirtualProtect((LPVOID)0x4403AE, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4403AE, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x4403AE = 10;
 
 	// Hook for CSimcityApp::InitInstance to bypass and fix:
@@ -239,24 +239,24 @@ void InstallMiscHooks_SC2KDemo(void) {
 	//     window when the program was executed via a launcher or
 	//     the command line.
 	// (This also accounts for the initial ShowWindow case)
-	VirtualProtect((LPVOID)0x476256, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x476256, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x476256, Hook_Demo_SimcityApp_InitInstanceFix);
 
 	// Set the initial program state to DEMO_ONIDLE_STATE_DISPLAYMAXIS
-	VirtualProtect((LPVOID)0x475C18, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x475C18, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x475C18 = DEMO_ONIDLE_STATE_DISPLAYMAXIS;
 
 	// Fix the Maxis Presents logo not being shown
-	VirtualProtect((LPVOID)0x4D2984, 13, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4D2984, 13, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4D2984, 0, 13);
-	memcpy_s((LPVOID)0x4D2984, 13, "presnts.bmp", 13);
+	memcpy_s((LPVOID)0x4D2984, 13, "presnts.bmp", 12);
 
 	// Hook CWnd::OnCommand
-	VirtualProtect((LPVOID)0x48D687, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x48D687, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x48D687, Hook_Demo_Wnd_OnCommand);
 
 	// Hook for CCmdUI::Enable
-	VirtualProtect((LPVOID)0x48F1C7, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x48F1C7, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x48F1C7, Hook_Demo_CmdUI_Enable);
 
 	// Add more buttons to SC2K's menus
@@ -288,7 +288,7 @@ void InstallMiscHooks_SC2KDemo(void) {
 skipmainmenu:
 	;
 	// Experiment with nullifying the timer during the first load.
-	//VirtualProtect((LPVOID)0x47685E, 10, PAGE_EXECUTE_READWRITE, &dwDummy);
+	//SafeVirtualProtect((LPVOID)0x47685E, 10, PAGE_EXECUTE_READWRITE, &dwDummy);
 	//BYTE bTimePatch[10] = { 0xC7, 0x05, 0x68, 0x6A, 0x4B, 0x00, 0xFF, 0xFF, 0x00, 0x00 };
 	//memcpy((LPVOID)0x47685E, bTimePatch, 10);
 }

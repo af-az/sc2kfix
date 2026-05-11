@@ -801,6 +801,6 @@ extern "C" void __stdcall Hook_SimulationProposeMilitaryBase(void) {
 }
 
 void InstallMilitaryHooks_SC2K1996(void) {
-	VirtualProtect((LPVOID)0x403017, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x403017, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x403017, Hook_SimulationProposeMilitaryBase);
 }

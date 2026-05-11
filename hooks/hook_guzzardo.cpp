@@ -557,6 +557,6 @@ void PorntipsGuzzardo(void) {
 	AdjustDebugMenu(hDebugMenu);
 
 	// Hook for CMainFrame::OnChar
-	VirtualProtect((LPVOID)0x4029E1, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4029E1, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4029E1, Hook_MainFrame_OnChar);
 }

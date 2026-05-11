@@ -694,22 +694,22 @@ extern "C" void __stdcall Hook_SimcityApp_MusicPlayNext(BOOL bNext) {
 
 void InstallMusicEngineHooks(void) {
 	// Restore additional music
-	VirtualProtect((LPVOID)0x401A9B, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x401A9B, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x401A9B, Hook_SimcityApp_MusicPlayNextRefocusSong);
 
 	// Hook for CSimcityApp::MusicPlayNext
-	VirtualProtect((LPVOID)0x402AEF, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x402AEF, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x402AEF, Hook_SimcityApp_MusicPlayNext);
 
 	// Shuffle music if the shuffle setting is enabled
 	MusicShufflePlaylist(0);
 
 	// Replace music functions with ones to post messages to the music thread
-	VirtualProtect((LPVOID)0x40145B, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x40145B, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x40145B, Hook_MainFrame_OnMCINotify);
-	VirtualProtect((LPVOID)0x402414, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x402414, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x402414, Hook_SimcityApp_MusicPlay);
-	VirtualProtect((LPVOID)0x402BE4, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x402BE4, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x402BE4, Hook_Sound_MusicStop);
 
 	// XXX - effectively always TRUE because the opt-in setting is now always TRUE as of

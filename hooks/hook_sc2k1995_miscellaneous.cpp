@@ -340,25 +340,25 @@ void InstallMiscHooks_SC2K1995(void) {
 	// Wipe out the call to UpdateSectionsAndResetWindowMenu() here
 	// otherwise it results in a crash if you cancel the LoadCity dialogue
 	// prior to starting any game.
-	VirtualProtect((LPVOID)0x42E746, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x42E746, 5, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x42E746, 0x90, 5);
 
 	// Wipe out the 'push'
-	VirtualProtect((LPVOID)0x42E732, 2, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x42E732, 2, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x42E732, 0x90, 2);
 	// Detour and add the UpdateSectionsAndResetWindowMenu() call
 	// within this function (this replicates the behaviour in the
 	// 1996SE version).
-	VirtualProtect((LPVOID)0x42E737, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x42E737, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x42E737, Hook_1995_LoadCityCancelFix);
 
 	// Fix the 'Arial" font
-	VirtualProtect((LPVOID)0x4E6234, 6, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4E6234, 6, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4E6234, 0, 6);
 	memcpy_s((LPVOID)0x4E6234, 6, "Arial", 6);
-	VirtualProtect((LPVOID)0x44D5C2, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x44D5C2, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x44D5C2 = 5;
-	VirtualProtect((LPVOID)0x44D5CF, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x44D5CF, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x44D5CF = 10;
 
 	// Hook for CSimcityApp::InitInstance to bypass and fix:
@@ -371,28 +371,28 @@ void InstallMiscHooks_SC2K1995(void) {
 	//    (Win9x ShellOpen path conversion to DOS-type, of which didn't
 	//    occur from NT 5.0 and beyond).
 	// (This also accounts for the initial ShowWindow case)
-	VirtualProtect((LPVOID)0x405813, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x405813, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x405813, Hook_1995_SimcityApp_InitInstanceFix);
 
 	// Hook CSimcityApp::OnQuit
-	VirtualProtect((LPVOID)0x401749, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x401749, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x401749, Hook_1995_SimcityApp_OnQuit);
 
 	// Set the initial program state to ONIDLE_STATE_DISPLAYMAXIS
-	VirtualProtect((LPVOID)0x4051DD, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4051DD, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE*)0x4051DD = ONIDLE_STATE_DISPLAYMAXIS;
 
 	// Fix the Maxis Presents logo not being shown
-	VirtualProtect((LPVOID)0x4E5120, 13, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4E5120, 13, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4E5120, 0, 13);
-	memcpy_s((LPVOID)0x4E5120, 13, "presnts.bmp", 13);
+	memcpy_s((LPVOID)0x4E5120, 12, "presnts.bmp", 12);
 
 	// Hook CWnd::OnCommand
-	VirtualProtect((LPVOID)0x4A4246, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4A4246, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4A4246, Hook_1995_Wnd_OnCommand);
 
 	// Hook for CCmdUI::Enable
-	VirtualProtect((LPVOID)0x4A185E, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4A185E, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4A185E, Hook_1995_CmdUI_Enable);
 
 	// Add more buttons to SC2K's menus
@@ -424,7 +424,7 @@ void InstallMiscHooks_SC2K1995(void) {
 skipmainmenu:
 	
 	// Adjust the Save File dialog type criterion
-	VirtualProtect((LPVOID)0x4E6314, 32, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4E6314, 32, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4E6314, 0, 32);
 	memcpy_s((LPVOID)0x4E6314, 32, "SimCity Files (*.sc2)|*.sc2||", 30);
 }

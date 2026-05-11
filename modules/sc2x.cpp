@@ -872,38 +872,38 @@ extern "C" void __stdcall Hook_LoadNeighborConnections1500(void) {
 void InstallSaveHooks_SC2K1996(void) {
 	// Fix city name being overwritten by filename on save
 	BYTE bFilenamePatch[6] = { 0xB9, 0xA0, 0xA1, 0x4C, 0x00, 0x51 };
-	VirtualProtect((LPVOID)0x42FE62, 6, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x42FE62, 6, PAGE_EXECUTE_READWRITE);
 	memcpy((LPVOID)0x42FE62, bFilenamePatch, 6);
-	VirtualProtect((LPVOID)0x42FE99, 6, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x42FE99, 6, PAGE_EXECUTE_READWRITE);
 	memcpy((LPVOID)0x42FE99, bFilenamePatch, 6);
 
 	// Adjust the Save File dialog type criterion
-	VirtualProtect((LPVOID)0x4E7344, 32, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4E7344, 32, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4E7344, 0, 32);
 	memcpy_s((LPVOID)0x4E7344, 32, "SimCity Files (*.sc2)|*.sc2||", 30);
 
 	// Fix save filenames going wonky
-	VirtualProtect((LPVOID)0x432870, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x432870, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x432870, Hook_CheckAndAppendCityExtension);
 
 	// Fix $1500 neighbor connections on game load
-	VirtualProtect((LPVOID)0x434BEA, 6, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x434BEA, 6, PAGE_EXECUTE_READWRITE);
 	NEWCALL((LPVOID)0x434BEA, Hook_LoadNeighborConnections1500);
 	*(BYTE*)0x434BEF = 0x90;
 
 	// Load game hook
-	VirtualProtect((LPVOID)0x4025A4, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4025A4, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4025A4, Hook_LoadGame);
 	
 	// Patch to stop CFile::CFile() from being called in exclusive mode when loading a game
-	VirtualProtect((LPVOID)0x430118, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x430118, 5, PAGE_EXECUTE_READWRITE);
 	*(DWORD*)0x430118 = 0x8040;
 
 	// Patch to attempt to fix loading partially corrupted saves
-	VirtualProtect((LPVOID)0x431212, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x431212, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x431212, Hook_431212);
 
 	// Save game hook
-	VirtualProtect((LPVOID)0x401870, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x401870, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x401870, Hook_SaveGame);
 }

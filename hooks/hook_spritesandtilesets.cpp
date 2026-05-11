@@ -438,12 +438,11 @@ extern "C" void __declspec(naked) __stdcall Hook_LoadSpriteArchives1996() {
 
 void InstallSpriteAndTileSetHooks_SC2K1996(void) {
 	// Hook LoadSpriteDataArchive
-	VirtualProtect((LPVOID)0x4029B4, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4029B4, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4029B4, Hook_LoadSpriteDataArchive1996);
 
-	// Hook into InitializeDataColorsFonts - move actual
-	// sprite loading into external call.
-	VirtualProtect((LPVOID)0x42C314, 30, PAGE_EXECUTE_READWRITE, &dwDummy);
+	// Hook into InitializeDataColorsFonts - move actual sprite loading into external call.
+	SafeVirtualProtect((LPVOID)0x42C314, 30, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x42C314, 0x90, 30);
 	NEWJMP((LPVOID)0x42C314, Hook_LoadSpriteArchives1996);
 }

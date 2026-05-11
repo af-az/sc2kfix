@@ -105,12 +105,12 @@ void InstallFixes_SCURKPrimary(void) {
 	L_SCURK_InitDOSMacPaletteIdxTable();
 
 	// Hook for palette animation fix
-	VirtualProtect((LPVOID)0x4496D4, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4496D4, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4496D4, Hook_SCURK_winscurkMDIClient_CycleColors);
 	ConsoleLog(LOG_INFO, "CORE: Patched palette animation fix for SCURK.\n");
 
 	// Add back the internal debug notices for tracing purposes.
-	VirtualProtect((LPVOID)0x4132EC, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4132EC, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4132EC, Hook_SCURKPrimary_DebugOut);
 
 	// These hooks are to account for the Place&Pick selection dialogue
@@ -118,11 +118,11 @@ void InstallFixes_SCURKPrimary(void) {
 	// 1) The Listbox was no longer displayed
 	// 2) Mouse selection was no longer recognised - or rather
 	//    the stored point within the window wasn't recorded.
-	VirtualProtect((LPVOID)0x4104B8, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4104B8, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4104B8, Hook_SCURK_PlaceTileListDlg_SetupWindow);
-	VirtualProtect((LPVOID)0x410D94, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x410D94, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x410D94, Hook_SCURK_PlaceTileListDlg_EvLButtonDblClk);
-	VirtualProtect((LPVOID)0x410ED0, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x410ED0, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x410ED0, Hook_SCURK_PlaceTileListDlg_EvLBNSelChange);
 
 	// TEncodeDib::mFillAt
@@ -133,14 +133,14 @@ void InstallFixes_SCURKPrimary(void) {
 	// cEditableTileSet::mRenderDBShapeToDIB calls that
 	// only apply when you switch back and forth between
 	// tiles). #1
-	VirtualProtect((LPVOID)0x4140D0, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4140D0, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4140D0, Hook_SCURK_EncodeDib_mFillAt);
-	VirtualProtect((LPVOID)0x4141C8, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4141C8, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4141C8, Hook_SCURK_EncodeDib_mFillLine);
 
 	// TEncodeDib::mDetermineShapeHeight
 	// Tweaks concerning height off-by-one cases.
-	VirtualProtect((LPVOID)0x414314, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x414314, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x414314, Hook_SCURK_EncodeDib_mDetermineShapeHeight);
 
 	// TEncodeDib::mShrink
@@ -148,7 +148,7 @@ void InstallFixes_SCURKPrimary(void) {
 	// left-most column of pixels being missed
 	// (This was the most visible when it came to the
 	// Plymouth Arcology).
-	VirtualProtect((LPVOID)0x41435C, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x41435C, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x41435C, Hook_SCURK_EncodeDib_mShrink);
 
 	// TEncodeDib::mEncodeShape
@@ -156,23 +156,23 @@ void InstallFixes_SCURKPrimary(void) {
 	// as well as ensuring that once the bottom row
 	// has been processed it always uses the "End of Shape"
 	// mode.
-	VirtualProtect((LPVOID)0x414450, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x414450, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x414450, Hook_SCURK_EncodeDib_mEncodeShape);
 
 	// Hook cEditableTileSet::mReadFromFile
 	// This call is used to load the TILES.DB.
-	VirtualProtect((LPVOID)0x4150EC, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4150EC, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4150EC, Hook_SCURK_EditableTileSet_mReadFromFile);
 
 	// cEditableTileSet::mWriteToMIFFFile
 	// Backup functionality added.
-	VirtualProtect((LPVOID)0x415404, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x415404, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x415404, Hook_SCURK_EditableTileSet_mWriteToMIFFFile);
 
 	// cEditableTileSet::mReadFromMIFFFile
 	// Macintosh-type MIF detection added
 	// for proper palette processing.
-	VirtualProtect((LPVOID)0x415D78, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x415D78, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x415D78, Hook_SCURK_EditableTileSet_mReadFromMIFFFile);
 
 	// cEditableTileSet::mReadShapeFromDib
@@ -182,9 +182,9 @@ void InstallFixes_SCURKPrimary(void) {
 	// from the PaintWindow's EncodedDib during EditWindow tile
 	// selection in-order to update the Small/Med objects based on
 	// the large object.
-	VirtualProtect((LPVOID)0x41692C, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x41692C, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x41692C, Hook_SCURK_EditableTileSet_mReadShapeFromDib_PostBuild);
-	VirtualProtect((LPVOID)0x416A18, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x416A18, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x416A18, Hook_SCURK_EditableTileSet_mReadShapeFromDib_Paint);
 
 	// cEditableTileSet::mRenderDBShapeToDIB
@@ -194,9 +194,9 @@ void InstallFixes_SCURKPrimary(void) {
 	// and the omission of portions of the
 	// right-most column of pixels on 4x4 objects
 	// (Plymouth Arcology being a prime example).
-	VirtualProtect((LPVOID)0x416C7C, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x416C7C, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x416C7C, Hook_SCURK_EditableTileSet_mRenderDBShapeToDIB_Dib);
-	VirtualProtect((LPVOID)0x416DFC, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x416DFC, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x416DFC, Hook_SCURK_EditableTileSet_mRenderDBShapeToDIB_Graphic);
 
 	// cEditableTileSet::mRenderShapeToTile
@@ -205,7 +205,7 @@ void InstallFixes_SCURKPrimary(void) {
 	// - Pick & Copy tiles for source and working sets
 	// - Paint the Town for the current working set
 	// Fix/adjustment concerning a vertical off-by-one case.
-	VirtualProtect((LPVOID)0x416F84, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x416F84, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x416F84, Hook_SCURK_EditableTileSet_mRenderShapeToTile);
 
 	// cEditableTileSet::mReadFromDOSFile
@@ -215,11 +215,11 @@ void InstallFixes_SCURKPrimary(void) {
 	// (At the moment processing only occurs
 	// for Shap objects that are within the
 	// bounds of the nEdNum range for WinSCURK).
-	VirtualProtect((LPVOID)0x417150, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x417150, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x417150, Hook_SCURK_EditableTileSet_mReadFromDOSFile);
 
 	// cPaintWindow::mEncodeShape
-	VirtualProtect((LPVOID)0x447200, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x447200, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x447200, Hook_SCURK_PaintWindow_mEncodeShape);
 
 	// 'nop' out the -1 case in the following functions in-regards to the
@@ -227,21 +227,21 @@ void InstallFixes_SCURKPrimary(void) {
 	// - cPaintWindow::mZoomOut
 	// - cPaintWindow::mZoomIn
 	// - cPaintWindow::EvHScroll
-	VirtualProtect((LPVOID)0x443D58, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x443D58, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x443D58) = 0x90;
-	VirtualProtect((LPVOID)0x443DA2, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x443DA2, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x443DA2) = 0x90;
-	VirtualProtect((LPVOID)0x443E88, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x443E88, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x443E88) = 0x90;
-	VirtualProtect((LPVOID)0x443ECD, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x443ECD, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x443ECD) = 0x90;
-	VirtualProtect((LPVOID)0x44703E, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x44703E, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x44703E) = 0x90;
 
 	// Increased the maximum extent by 1 to fix the lack of the last
 	// right-side column of pixels:
 	// cPaintWindow::cPaintWindow
-	VirtualProtect((LPVOID)0x4432E4, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4432E4, 1, PAGE_EXECUTE_READWRITE);
 	*(BYTE *)(0x4432E4) = 0x01;
 
 	// cPaintWindow::mFill
@@ -251,7 +251,7 @@ void InstallFixes_SCURKPrimary(void) {
 	// cEditableTileSet::mRenderDBShapeToDIB calls that
 	// only apply when you switch back and forth between
 	// tiles). #2
-	VirtualProtect((LPVOID)0x444700, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x444700, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x444700, Hook_SCURK_PaintWindow_mFill);
 
 	// Hook cPaintWindow::mClipDrawing
@@ -261,11 +261,11 @@ void InstallFixes_SCURKPrimary(void) {
 	// shape you'd see at least one pixel on each
 	// row being clipped on the right-most side
 	// of the tile base).
-	VirtualProtect((LPVOID)0x443F34, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x443F34, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x443F34, Hook_SCURK_PaintWindow_mClipDrawing);
 
 	// winscurkMDIFrame::AssignMenu
-	VirtualProtect((LPVOID)0x4482F8, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4482F8, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4482F8, Hook_SCURK_winscurkMDIFrame_AssignMenu);
 
 	// winscurkMoverWindow::EvSize():
@@ -273,52 +273,52 @@ void InstallFixes_SCURKPrimary(void) {
 	// This avoids some redrawing strangeness that otherwise occurs
 	// if the Pick&Copy window is in-focus and you then restore
 	// the Place&Pick window to its non-maximized state.
-	VirtualProtect((LPVOID)0x44FE19, 13, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x44FE19, 13, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x44FE19, 0x90, 13);
 
 	// Temporarily disable the maximizebox style if SM_CXSCREEN is above 700.
-	VirtualProtect((LPVOID)0x44E2D7, 24, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x44E2D7, 24, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x44E2D7, 0x90, 24);
 	NEWJMP((LPVOID)0x44E2D7, Hook_SCURKPrimary_MoverWindow_DisableMaximizeBox);
 
 	// Temporarily lock the Min/Max size of the Pick&Copy window
 	// to avoid rendering the area non-functional.
-	VirtualProtect((LPVOID)0x450080, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x450080, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x450080, Hook_SCURK_MoverWindow_EvGetMinMaxInfo);
 
 	// Re-route the loading of palette-related resources
 	// in order for it use the adjusted set here.
-	VirtualProtect((LPVOID)0x450E3F, 324, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x450E3F, 324, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x450E3F, 0x90, 324);
 	NEWJMP((LPVOID)0x450E3F, Hook_SCURKPrimary_PaletteWindow_Construct_PalRes);
 
 	// For both Left and Right Button Down it has now been adjusted so it
 	// can access entries that are on row 10.
-	VirtualProtect((LPVOID)0x4514E8, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4514E8, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4514E8, Hook_SCURK_PaletteWindow_EvLButtonDown);
-	VirtualProtect((LPVOID)0x4515B4, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4515B4, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4515B4, Hook_SCURK_PaletteWindow_EvRButtonDown);
 
 	// OwlMain() command line fix.
-	VirtualProtect((LPVOID)0x45A0B9, 7, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x45A0B9, 7, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x45A0B9, 0x90, 7);
 	NEWJMP((LPVOID)0x45A0B9, Hook_SCURKPrimary_OwlMainCommandLineFix);
 
 	// TMenuItemEnabler::Enable
-	VirtualProtect((LPVOID)0x47316A, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x47316A, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x47316A, Hook_SCURK_MenuItemEnabler_Enable);
 
 	// TMenuItemEnabler::SetCheck
-	VirtualProtect((LPVOID)0x4731B9, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4731B9, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4731B9, Hook_SCURK_MenuItemEnabler_SetCheck);
 
 	// This hook is to prevent the Place&Pick selection dialogue
 	// from being unintentionally closed; it catches and ignores
 	// the cancel (esc) action.
-	VirtualProtect((LPVOID)0x46FB26, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x46FB26, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x46FB26, Hook_SCURK_BCDialog_CmCancel);
 
 	// TFrameWindow::EvCommand
-	VirtualProtect((LPVOID)0x473733, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x473733, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x473733, Hook_SCURK_FrameWindow_EvCommand);
 }

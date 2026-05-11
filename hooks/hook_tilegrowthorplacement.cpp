@@ -2181,23 +2181,23 @@ FAIL:
 
 void InstallTileGrowthOrPlacementHandlingHooks_SC2K1996(void) {
 	// Hook into the SimulationGrowthTick function
-	VirtualProtect((LPVOID)0x4022FC, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4022FC, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4022FC, Hook_SimulationGrowthTick);
 
 	// Hook into the SimulationGrowSpecificZone function
-	VirtualProtect((LPVOID)0x4026B2, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4026B2, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4026B2, Hook_SimulationGrowSpecificZone);
 
 	// Hook into the PlacePowerLinesAtCoordinates function
-	VirtualProtect((LPVOID)0x402725, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x402725, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x402725, Hook_PlacePowerLinesAtCoordinates);
 
 	// Hook into the ItemPlacementCheck function
-	VirtualProtect((LPVOID)0x4027F2, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x4027F2, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x4027F2, Hook_ItemPlacementCheck);
 
 	// Hook CityToolPlaceSelectedBuilding
-	VirtualProtect((LPVOID)0x401005, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x401005, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x401005, Hook_CityToolPlaceSelectedBuilding);
 
 	// Military base hooks

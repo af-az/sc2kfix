@@ -288,7 +288,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
 		ConsoleLog(LOG_DEBUG, "CORE: sc2kfix built with DEBUGALL. Strap in.\n");
 #endif
 
-		ConsoleLog(LOG_INFO, "CORE: %s session started at %lld.\n", GetProgramNameFromSC2KFixMode(), time(NULL));
+		ConsoleLog(LOG_INFO, "CORE: %s session started at %lld (load address 0x%08X).\n", GetProgramNameFromSC2KFixMode(), time(NULL), (DWORD)hSC2KAppModule);
 		ConsoleLog(LOG_INFO, "CORE: Command line: %s\n", GetCommandLine());
 
 		// Dump some OS version information for bug reports
@@ -481,9 +481,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
 		}
 
 		if (bCanFixDialogCrash) {
-			VirtualProtect(lpDialogFix1, 1, PAGE_EXECUTE_READWRITE, &dwDummy);
+			SafeVirtualProtect(lpDialogFix1, 1, PAGE_EXECUTE_READWRITE);
 			*(LPBYTE)lpDialogFix1 = 0x20;
-			VirtualProtect(lpDialogFix2, 2, PAGE_EXECUTE_READWRITE, &dwDummy);
+			SafeVirtualProtect(lpDialogFix2, 2, PAGE_EXECUTE_READWRITE);
 			*(LPBYTE)lpDialogFix2 = 0xEB;
 			*(LPBYTE)((UINT_PTR)lpDialogFix2 + 1) = 0xEB;
 			ConsoleLog(LOG_INFO, "CORE: Patched dialog crash fix.\n");
@@ -521,8 +521,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
 		}
 
 		if (bCanFixPaletteWarnings) {
-			VirtualProtect(lpWarningFix1, 2, PAGE_EXECUTE_READWRITE, &dwDummy);
-			VirtualProtect(lpWarningFix2, 18, PAGE_EXECUTE_READWRITE, &dwDummy);
+			SafeVirtualProtect(lpWarningFix1, 2, PAGE_EXECUTE_READWRITE);
+			SafeVirtualProtect(lpWarningFix2, 18, PAGE_EXECUTE_READWRITE);
 			*(LPBYTE)lpWarningFix1 = 0x90;
 			*(LPBYTE)((UINT_PTR)lpWarningFix1 + 1) = 0x90;
 			memset((LPVOID)lpWarningFix2, 0x90, 18);   // nop nop nop nop nop

@@ -40,6 +40,36 @@ void InitializeFonts(void) {
 	bFontsInitialized = TRUE;
 }
 
+// Wrapper for VirtualProtect that throws a fatal error if it fails
+bool SafeVirtualProtectEx(void* lpAddress, size_t dwSize, DWORD flNewProtect, const char* szFile, int iLine, const char* szFunction) {
+	DWORD dwDummy;
+	bool bSuccess = VirtualProtect(lpAddress, dwSize, flNewProtect, &dwDummy);
+
+	if (bSuccess)
+		return bSuccess;
+
+	DWORD dwError = GetLastError();
+
+	ConsoleLog(LOG_EMERGENCY, "CORE: SafeVirtualProtect(0x%08X, %d, 0x%08X) failed at %s:%d in function %s(); error code 0x%08X.\n", lpAddress, dwSize, flNewProtect, szFile, iLine, szFunction, dwError);
+
+	MessageBox(GetActiveWindow(),
+		"sc2kfix has encountered a fatal error when trying to set up critical hooks into the "
+		"SimCity 2000 game engine. Initialization of the game cannot continue. This may be due "
+		"to system security configuration, misbehaving antivirus software, or running the game "
+		"alongside another game with aggressive anti-cheat functionality.\n\n"
+
+		"Please submit a crash report to the sc2kfix developers either via the sc2kfix GitHub "
+		"issues page (https://github.com/sc2kfix/sc2kfix/issues -- preferred) or via the sc2kfix "
+		"Discord server (https://sc2kfix.net/discord). In order for us to best assist with the "
+		"crash, please make a copy of the sc2kfix.log file after closing this dialog and before "
+		"you re-open SimCity 2000. Submit this copy of the log file along with your crash report, "
+		"and we will do our best to investigate.\n\n"
+
+		"Clicking the OK button will immediately terminate SimCity 2000. Any unsaved progress "
+		"will be lost.", "sc2kfix fatal error", MB_OK | MB_ICONSTOP);
+	abort();
+}
+
 HOOKEXT void CenterDialogBox(HWND hwndDlg) {
 	HWND hwndDesktop;
 	RECT rcTemp, rcDlg, rcDesktop;

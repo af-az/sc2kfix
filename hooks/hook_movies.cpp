@@ -117,10 +117,10 @@ void InstallMovieHooks(void) {
 		ConsoleLog(LOG_DEBUG, "MOV:  Loaded movie hooks.\n");
 
 	// Hook into the movie opening function.
-	VirtualProtect((LPVOID)0x401104, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x401104, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x401104, Hook_MovieOpen);
 
 	// Hook into the movie checking function.
-	VirtualProtect((LPVOID)0x402360, 5, PAGE_EXECUTE_READWRITE, &dwDummy);
+	SafeVirtualProtect((LPVOID)0x402360, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x402360, Hook_MovieCheck);
 }
