@@ -19,6 +19,18 @@ static DWORD dwDummy;
 
 HOOKEXT_CPP json::JSON jsonSettingsCore;
 HOOKEXT_CPP json::JSON jsonSettingsMods;
+json::JSON jsonSettingsCoreWorkingCopy;
+
+#define TAB_COUNT 3
+
+struct {
+	HWND hwndTab;
+	HWND hwndDisplay;
+	RECT rcDisplay;
+	DLGTEMPLATE* pDlgResource[TAB_COUNT];
+	DLGPROC pDlgProc[TAB_COUNT];
+	settings_t* stSettingsChanges;
+} stSettingsDialogHeader;
 
 char szGamePath[MAX_PATH];
 
@@ -252,135 +264,56 @@ void SaveJSONSettings(void) {
 	}
 }
 
-static void SetSettingsTabOrdering(HWND hwndDlg) {
-	UINT uFlags = (SWP_NOMOVE | SWP_NOSIZE);
+static DLGTEMPLATE* SettingsGetDialogResource(LPCTSTR lpszResName) {
+	HRSRC hRsrc = FindResource(hSC2KFixModule, lpszResName, RT_DIALOG);
+	if (!hRsrc)
+		return NULL;
 
-	// Entries are defined in reverse order.
+	HGLOBAL hRes = LoadResource(hSC2KFixModule, hRsrc);
+	if (!hRes)
+		return NULL;
 
-	// Bottom Buttons
-	SetWindowPos(GetDlgItem(hwndDlg, ID_SETTINGS_VANILLA), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, ID_SETTINGS_DEFAULTS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, ID_SETTINGS_CANCEL), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, ID_SETTINGS_OK), NULL, 0, 0, 0, 0, uFlags);
-
-	// sc2kfix Core Settings
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DONT_LOAD_MODS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CONSOLE), NULL, 0, 0, 0, 0, uFlags);
-
-	// Interface Settings
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DARK_UNDGRND), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SKIP_INTRO), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_NEW_STRINGS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_TITLE_DATE), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_STATUS_DIALOG), NULL, 0, 0, 0, 0, uFlags);
-
-	// Quality of Life / Performance Settings
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_REFRESH_RATE), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SHUFFLE_MUSIC), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_BKGDMUSIC), NULL, 0, 0, 0, 0, uFlags);
-
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_CONFKEYBINDINGS), NULL, 0, 0, 0, 0, uFlags);
-
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_CONFMP3TRACKS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_CONFMIDTRACKS), NULL, 0, 0, 0, 0, uFlags);
-
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_SOUNDFONTBROWSE), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), NULL, 0, 0, 0, 0, uFlags);
-
-	// Game Settings
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_RESETFILEASSOCIATIONS), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_COMPANY), NULL, 0, 0, 0, 0, uFlags);
-	SetWindowPos(GetDlgItem(hwndDlg, IDC_SETTINGS_MAYOR), NULL, 0, 0, 0, 0, uFlags);
+	return (DLGTEMPLATE*)LockResource(hRes);
 }
 
-json::JSON jsonSettingsCoreWorkingCopy;
+static void SettingsTabSelectionChanged(HWND hwndDlg) {
+	// Get the index of the selected tab.
+	int i = TabCtrl_GetCurSel(stSettingsDialogHeader.hwndTab);
+
+	// Destroy the current child dialog box, if any. 
+	if (stSettingsDialogHeader.hwndDisplay != NULL)
+		DestroyWindow(stSettingsDialogHeader.hwndDisplay);
+
+	// Create the new child dialog box.
+	stSettingsDialogHeader.hwndDisplay = CreateDialogIndirect(hSC2KFixModule, (DLGTEMPLATE*)stSettingsDialogHeader.pDlgResource[i], hwndDlg, stSettingsDialogHeader.pDlgProc[i]);
+	return;
+}
 
 #define GET_CHECKBOX(dest, src) dest = (Button_GetCheck(GetDlgItem(hwndDlg, src)) == BST_CHECKED) ? true : false
 #define SET_CHECKBOX(src, dest) Button_SetCheck(GetDlgItem(hwndDlg, dest), src.ToBool() ? BST_CHECKED : BST_UNCHECKED)
 
-BOOL CALLBACK SettingsDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-	std::string strVersionInfo;
-	settings_t *st;
+static BOOL CALLBACK SettingsDialogGeneralTabProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	HWND hwndParent;
 	char szTempRegistrationNameBuffer[64] = { 0 };
-
-	char szFluidSynthSettingPath[MAX_PATH] = { 0 };
-	OPENFILENAMEA stOFNFluidSynth = {
-		sizeof(OPENFILENAMEA), hwndDlg, NULL,
-		"SoundFont2 Files (*.sf2)\0*.sf2\0\0",
-		NULL, NULL, NULL,
-		szFluidSynthSettingPath, MAX_PATH - 1,
-		NULL, NULL, NULL,
-		"Select a FluidSynth SoundFont",
-	};
 
 	switch (message) {
 	case WM_INITDIALOG:
-		SetWindowLong(hwndDlg, GWL_USERDATA, lParam);
-		st = (settings_t *)lParam;
-		// Set the dialog box icon
-		SendMessage(hwndDlg, WM_SETICON, ICON_BIG, (LPARAM)LoadIcon(hSC2KFixModule, MAKEINTRESOURCE(IDI_TOPSECRET)));
-		SendMessage(hwndDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon(hSC2KFixModule, MAKEINTRESOURCE(IDI_TOPSECRET)));
+		// Place ourselves in the correct position
+		hwndParent = GetParent(hwndDlg);
+		SetWindowPos(hwndDlg, NULL, stSettingsDialogHeader.rcDisplay.left, stSettingsDialogHeader.rcDisplay.top,
+			(stSettingsDialogHeader.rcDisplay.right - stSettingsDialogHeader.rcDisplay.left),
+			(stSettingsDialogHeader.rcDisplay.bottom - stSettingsDialogHeader.rcDisplay.top),
+			SWP_SHOWWINDOW);
 
-		// Set the tab order for the dialog controls
-		SetSettingsTabOrdering(hwndDlg);
-
-		// Inject the music engine crap
-		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "None");			// MUSIC_ENGINE_NONE
-		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "Windows MIDI");	// MUSIC_ENGINE_SEQUENCER
-		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "FluidSynth");		// MUSIC_ENGINE_FLUIDSYNTH
-		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "MP3 Playback");	// MUSIC_ENGINE_MP3
-		ComboBox_SetMinVisible(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), 4);
+		Static_GetIcon(GetDlgItem(hwndDlg, IDC_STATIC_TOPSECRET), LoadIcon(hSC2KFixModule, MAKEINTRESOURCE(IDI_TOPSECRET)));
+		SendMessage(GetDlgItem(hwndDlg, IDC_STATIC_RELEASEBANNER), WM_SETFONT, (WPARAM)hSystemRegular12, TRUE);
+		InvalidateRect(hwndDlg, NULL, TRUE);
 
 		DestroyStoredTooltips(storedToolTips, hwndDlg);
 
-		// Create tooltips.
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, ID_SETTINGS_OK),
-			"Saves the currently selected settings and closes the settings dialog.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, ID_SETTINGS_CANCEL),
-			"Discards changed settings and closes the settings dialog.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, ID_SETTINGS_DEFAULTS),
-			"Changes the settings to the default sc2kfix experience but does not save settings or close the dialog.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, ID_SETTINGS_VANILLA),
-			"Changes the settings to disable all quality of life, interface and gameplay enhancements but does not save settings or close the dialog.");
+		// Create tooltips
 		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_RESETFILEASSOCIATIONS),
 			"Resets the file association entries in the registry so that .sc2 and .scn files will automatically open in SimCity 2000.");
-
-		// QoL/Performance settings
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT),
-			"Selects the music output driver. Uses Windows MIDI as a fallback option.\n\n"
-			""
-			"None: Disables music playback independent of the per-game music option.\n"
-			"Windows MIDI: Uses the native Windows MIDI sequencer.\n"
-			"FluidSynth: Uses the FluidSynth software synth, if available (default).\n"
-			"MP3 Playback: Uses MP3 files for playback, if available.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT),
-			"FluidSynth requires a soundfont for playback that contains the samples and synthesis data required to play back MIDI files. Any SoundFont 2 standard soundfont\n\n"
-			""
-			"Selecting a new soundfont will reset the music engine and restart the currently playing song.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_SOUNDFONTBROWSE),
-			"Opens a file browser to select a soundfont for FluidSynth. Not needed for Windows MIDI or MP3 playback drivers.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_BKGDMUSIC),
-			"By default, SimCity 2000 stops the currently-playing song when the game window loses focus. This setting continues playing music in the background until the end of the track, "
-			"after which a new song will be selected when the game window regains focus.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS),
-			"Certain versions of SimCity 2000 had higher quality sounds than the Windows 95 versions. "
-			"This setting controls whether or not SimCity 2000 plays higher quality versions of various sounds for which said higher quality versions exist.\n\n"
-
-			"Enabling or disabling this setting takes effect after restarting the game.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SHUFFLE_MUSIC),
-			"By default, SimCity 2000 selects \"random\" music by playing the next track in a looping playlist of songs. "
-			"This setting controls whether or not to shuffle the playlist when the game starts and when the end of the playlist is reached.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_REFRESH_RATE),
-			"SimCity 2000 was designed to spend more CPU time on simulation than on rendering by only updating the city's growth when the display moves or on the 24th day of the month. "
-			"Enabling this setting allows the game to refresh the city display in real-time instead of batching display updates.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC),
-			"Enabling this setting will result in the next random music selection being played after the current song finishes.");
-
-		// sc2kfix core settings
 		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CONSOLE),
 			"sc2kfix has a debugging console that can be activated by passing the -console argument to SimCity 2000's command line. "
 			"This setting forces sc2kfix to always start the console along with the game, even if the -console argument is not passed.\n\n"
@@ -394,8 +327,66 @@ BOOL CALLBACK SettingsDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPAR
 			"Enabling this setting forces sc2kfix to skip loading any installed mods on startup.\n\n"
 
 			"Enabling or disabling this setting takes effect after restarting the game.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SKIP_INTRO),
+			"Once enabled the introduction videos will be skipped on startup. Only applies if videos have been detected.\n\n"
 
-		// Interface settings
+			"Enabling or disabling this setting takes effect after restarting the game.");
+
+		// Set fields based on the working JSON
+		SetDlgItemText(hwndDlg, IDC_SETTINGS_MAYOR, jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_MAYORNAME].ToString().c_str());
+		SetDlgItemText(hwndDlg, IDC_SETTINGS_COMPANY, jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_COMPANYNAME].ToString().c_str());
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON], IDC_SETTINGS_CHECK_CONSOLE);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD], IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS], IDC_SETTINGS_CHECK_DONT_LOAD_MODS);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO], IDC_SETTINGS_CHECK_SKIP_INTRO);
+
+		return TRUE;
+
+	case WM_DESTROY:
+		// Update the working JSON based on our fields
+		if (GetDlgItemText(hwndDlg, IDC_SETTINGS_MAYOR, szTempRegistrationNameBuffer, 63))
+			jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_MAYORNAME] = szTempRegistrationNameBuffer;
+		if (GetDlgItemText(hwndDlg, IDC_SETTINGS_COMPANY, szTempRegistrationNameBuffer, 63))
+			jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_COMPANYNAME] = szTempRegistrationNameBuffer;
+
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON], IDC_SETTINGS_CHECK_CONSOLE);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD], IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS], IDC_SETTINGS_CHECK_DONT_LOAD_MODS);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO], IDC_SETTINGS_CHECK_SKIP_INTRO);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		return TRUE;
+
+	case WM_COMMAND:
+		switch (GET_WM_COMMAND_ID(wParam, lParam)) {
+		case IDC_SETTINGS_BUTTON_RESETFILEASSOCIATIONS:
+			ResetFileAssociations();
+			MessageBox(hwndDlg, ".sc2 and .scn file associations reset!", "It Works!", MB_OK | MB_ICONINFORMATION);
+			break;
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static BOOL CALLBACK SettingsDialogGameplayTabProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	HWND hwndParent;
+	char szTempRegistrationNameBuffer[64] = { 0 };
+
+	switch (message) {
+	case WM_INITDIALOG:
+		// Place ourselves in the correct position
+		hwndParent = GetParent(hwndDlg);
+		SetWindowPos(hwndDlg, NULL, stSettingsDialogHeader.rcDisplay.left, stSettingsDialogHeader.rcDisplay.top,
+			(stSettingsDialogHeader.rcDisplay.right - stSettingsDialogHeader.rcDisplay.left),
+			(stSettingsDialogHeader.rcDisplay.bottom - stSettingsDialogHeader.rcDisplay.top),
+			SWP_SHOWWINDOW);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		// Create tooltips
 		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_STATUS_DIALOG),
 			"The DOS and Mac versions of SimCity 2000 used a movable floating dialog to show the current tool, status line, and weather instead of a fixed bar at the bottom of the game window. "
 			"Enabling this setting will use the floating status dialog instead of the bottom status bar.");
@@ -403,10 +394,227 @@ BOOL CALLBACK SettingsDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPAR
 			"By default the title bar only displays the month and year. Enabling this setting will display the full in-game date instead.");
 		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_NEW_STRINGS),
 			"Certain strings in the game have typos, grammatical issues, and/or ambiguous wording. This setting loads corrected strings in memory in place of the affected originals.");
-		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SKIP_INTRO),
-			"Once enabled the introduction videos will be skipped on startup (This will only apply if the videos have been detected, otherwise the standard warning will be displayed).");
+
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_REFRESH_RATE),
+			"SimCity 2000 was designed to spend more CPU time on simulation than on rendering by only updating the city's growth when the display moves or on the 24th day of the month. "
+			"Enabling this setting allows the game to refresh the city display in real-time instead of batching display updates.");
 		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DARK_UNDGRND),
 			"When enabled the underground layer background will be dark.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS),
+			"Certain versions of SimCity 2000 had higher quality sounds than the Windows 95 versions. "
+			"This setting controls whether or not SimCity 2000 plays higher quality versions of various sounds for which said higher quality versions exist.\n\n"
+
+			"Enabling or disabling this setting takes effect after restarting the game.");
+
+		// Set fields based on the working JSON
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS], IDC_SETTINGS_CHECK_STATUS_DIALOG);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND], IDC_SETTINGS_CHECK_TITLE_DATE);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS], IDC_SETTINGS_CHECK_NEW_STRINGS);
+
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES], IDC_SETTINGS_CHECK_REFRESH_RATE);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND], IDC_SETTINGS_CHECK_DARK_UNDGRND);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE], IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS);
+
+		return TRUE;
+
+	case WM_DESTROY:
+		// Update the working JSON based on our fields
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS], IDC_SETTINGS_CHECK_STATUS_DIALOG);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND], IDC_SETTINGS_CHECK_TITLE_DATE);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS], IDC_SETTINGS_CHECK_NEW_STRINGS);
+
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES], IDC_SETTINGS_CHECK_REFRESH_RATE);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND], IDC_SETTINGS_CHECK_DARK_UNDGRND);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE], IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		return TRUE;
+
+	case WM_COMMAND:
+		switch (GET_WM_COMMAND_ID(wParam, lParam)) {
+		case IDC_SETTINGS_BUTTON_CONFKEYBINDINGS:
+			return DoConfigureKeyBindings(stSettingsDialogHeader.stSettingsChanges, hwndDlg);
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static BOOL CALLBACK SettingsDialogAudioTabProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	HWND hwndParent;
+	char szFluidSynthSettingPath[MAX_PATH] = { 0 };
+	OPENFILENAMEA stOFNFluidSynth = {
+		sizeof(OPENFILENAMEA), hwndDlg, NULL,
+		"SoundFont2 Files (*.sf2)\0*.sf2\0\0",
+		NULL, NULL, NULL,
+		szFluidSynthSettingPath, MAX_PATH - 1,
+		NULL, NULL, NULL,
+		"Select a FluidSynth SoundFont",
+	};
+
+	switch (message) {
+	case WM_INITDIALOG:
+		// Place ourselves in the correct position
+		hwndParent = GetParent(hwndDlg);
+		SetWindowPos(hwndDlg, NULL, stSettingsDialogHeader.rcDisplay.left, stSettingsDialogHeader.rcDisplay.top,
+			(stSettingsDialogHeader.rcDisplay.right - stSettingsDialogHeader.rcDisplay.left),
+			(stSettingsDialogHeader.rcDisplay.bottom - stSettingsDialogHeader.rcDisplay.top),
+			SWP_SHOWWINDOW);
+
+		// Set up the music driver combo box
+		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "None");			// MUSIC_ENGINE_NONE
+		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "Windows MIDI");	// MUSIC_ENGINE_SEQUENCER
+		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "FluidSynth");		// MUSIC_ENGINE_FLUIDSYNTH
+		ComboBox_AddString(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), "MP3 Playback");	// MUSIC_ENGINE_MP3
+		ComboBox_SetMinVisible(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), 4);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		// Create tooltips
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT),
+			"Selects the music output driver. Uses Windows MIDI as a fallback option.\n\n"
+			""
+			"None: Disables music playback independent of the per-game music option.\n"
+			"Windows MIDI: Uses the native Windows MIDI sequencer.\n"
+			"FluidSynth: Uses the FluidSynth software synth, if available (default).\n"
+			"MP3 Playback: Uses MP3 files for playback, if available.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT),
+			"FluidSynth requires a soundfont for playback that contains the samples and synthesis data required to play back MIDI files. Any SoundFont 2 standard soundfont can be selected. "
+			"By default, sc2kfix uses the General MIDI soundfont included with Windows that the MIDI sequencer uses.\n\n"
+			""
+			"Selecting a new soundfont will reset the music engine and restart the currently playing song.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_SOUNDFONTBROWSE),
+			"Opens a file browser to select a soundfont for FluidSynth. Not needed for Windows MIDI or MP3 playback drivers.");
+
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_BKGDMUSIC),
+			"By default, SimCity 2000 stops the currently-playing song when the game window loses focus. This setting continues playing music in the background until the end of the track, "
+			"after which a new song will be selected when the game window regains focus.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC),
+			"Enabling this setting will result in the next random music selection being played after the current song finishes.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SHUFFLE_MUSIC),
+			"By default, SimCity 2000 selects \"random\" music by playing the next track in a looping playlist of songs. "
+			"This setting controls whether or not to shuffle the playlist when the game starts and when the end of the playlist is reached.");
+
+		// Set fields based on the working JSON
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MASTER), TBM_SETPOS, TRUE, (int)(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MASTERVOLUME].ToFloat() * 10));
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MASTER), TBM_SETTICFREQ, 1, 0);
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MASTER), TBM_SETRANGE, TRUE, MAKELONG(0, 10));
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MUSIC), TBM_SETPOS, TRUE, (int)(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICVOLUME].ToFloat() * 10));
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MUSIC), TBM_SETTICFREQ, 1, 0);
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MUSIC), TBM_SETRANGE, TRUE, MAKELONG(0, 10));
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_SOUNDS), TBM_SETPOS, TRUE, (int)(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDVOLUME].ToFloat() * 10));
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_SOUNDS), TBM_SETTICFREQ, 1, 0);
+		SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_SOUNDS), TBM_SETRANGE, TRUE, MAKELONG(0, 10));
+		InvalidateRect(hwndDlg, NULL, TRUE);	// Force a redraw so the sliders show up. Friggin' WinAPI.
+
+		ComboBox_SetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), MusicEngineStringToInt(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER].ToString().c_str()));
+		SetDlgItemText(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT, GetFileBaseName(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT].ToString().c_str()));
+
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND], IDC_SETTINGS_CHECK_BKGDMUSIC);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC], IDC_SETTINGS_CHECK_SHUFFLE_MUSIC);
+		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC], IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC);
+
+		return TRUE;
+
+	case WM_DESTROY:
+		// Update the working JSON based on our fields
+		jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MASTERVOLUME] = 0.1f * SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MASTER), TBM_GETPOS, 0, 0);
+		jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICVOLUME] = 0.1f * SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_MUSIC), TBM_GETPOS, 0, 0);
+		jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDVOLUME] = 0.1f * SendMessage(GetDlgItem(hwndDlg, IDC_SLIDER_VOLUME_SOUNDS), TBM_GETPOS, 0, 0);
+
+		jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER] = MusicEngineIntToString(ComboBox_GetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT)));
+
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND], IDC_SETTINGS_CHECK_BKGDMUSIC);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC], IDC_SETTINGS_CHECK_SHUFFLE_MUSIC);
+		GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC], IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		return TRUE;
+
+	case WM_COMMAND:
+		switch (GET_WM_COMMAND_ID(wParam, lParam)) {
+		case IDC_SETTINGS_BUTTON_SOUNDFONTBROWSE:
+			if (GetOpenFileName(&stOFNFluidSynth)) {
+				if (mus_debug & 8)
+					ConsoleLog(LOG_DEBUG, "CORE: SoundFont setting changed; new soundfont is %s\n", szFluidSynthSettingPath);
+
+				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT] = szFluidSynthSettingPath;
+				SetDlgItemText(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT, GetFileBaseName(szFluidSynthSettingPath));
+			}
+			break;
+		case IDC_SETTINGS_BUTTON_CONFMIDTRACKS:
+			return DoConfigureMusicTracks(stSettingsDialogHeader.stSettingsChanges, hwndDlg, FALSE);
+		case IDC_SETTINGS_BUTTON_CONFMP3TRACKS:
+			return DoConfigureMusicTracks(stSettingsDialogHeader.stSettingsChanges, hwndDlg, TRUE);
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+// Template for future tabs
+static BOOL CALLBACK TabDlg(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	HWND hwndParent;
+
+	switch (message) {
+	case WM_INITDIALOG:
+		// Place ourselves in the correct position
+		hwndParent = GetParent(hwndDlg);
+		SetWindowPos(hwndDlg, NULL, stSettingsDialogHeader.rcDisplay.left, stSettingsDialogHeader.rcDisplay.top,
+			(stSettingsDialogHeader.rcDisplay.right - stSettingsDialogHeader.rcDisplay.left),
+			(stSettingsDialogHeader.rcDisplay.bottom - stSettingsDialogHeader.rcDisplay.top),
+			SWP_SHOWWINDOW);
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		// Create tooltips
+
+		// Set fields based on the working JSON
+
+		return TRUE;
+
+	case WM_DESTROY:
+		// Update the working JSON based on our fields
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		return TRUE;
+
+	case WM_COMMAND:
+		// switch (GET_WM_COMMAND_ID(wParam, lParam)) {
+		// default:
+		// 	break;
+		// }
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+BOOL CALLBACK SettingsDialogContainerProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	std::string strVersionInfo;
+
+	switch (message) {
+	case WM_INITDIALOG:
+		// Set the dialog box icon
+		SendMessage(hwndDlg, WM_SETICON, ICON_BIG, (LPARAM)LoadIcon(hSC2KFixModule, MAKEINTRESOURCE(IDI_TOPSECRET)));
+		SendMessage(hwndDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon(hSC2KFixModule, MAKEINTRESOURCE(IDI_TOPSECRET)));
+
+		DestroyStoredTooltips(storedToolTips, hwndDlg);
+
+		// Create tooltips
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDOK),
+			"Saves the currently selected settings and closes the settings dialog.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDCANCEL),
+			"Discards changed settings and closes the settings dialog.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_DEFAULTS),
+			"Changes the settings to the default sc2kfix experience but does not save settings or close the dialog.");
+		StoreTooltip(storedToolTips, hwndDlg, GetDlgItem(hwndDlg, IDC_SETTINGS_BUTTON_VANILLA),
+			"Changes the settings to disable all quality of life, interface and gameplay enhancements but does not save settings or close the dialog.");
 
 		// Set the version string.
 		strVersionInfo = "sc2kfix ";
@@ -414,155 +622,147 @@ BOOL CALLBACK SettingsDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPAR
 		strVersionInfo += " (";
 		strVersionInfo += szSC2KFixReleaseTag;
 		strVersionInfo += ")";
-		SetDlgItemText(hwndDlg, IDC_STATIC_VERSIONINFO, strVersionInfo.c_str());
+		SetDlgItemText(hwndDlg, IDC_SETTINGS_STATIC_VERSIONINFO, strVersionInfo.c_str());
 
-		// Load the existing settings into the dialog
-		SetDlgItemText(hwndDlg, IDC_SETTINGS_MAYOR, jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_MAYORNAME].ToString().c_str());
-		SetDlgItemText(hwndDlg, IDC_SETTINGS_COMPANY, jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_COMPANYNAME].ToString().c_str());
+		// Create the tab setup
+		TCITEM tie;
+		RECT rcTab;
+		memset(&stSettingsDialogHeader, 0, sizeof(stSettingsDialogHeader));
+		stSettingsDialogHeader.hwndTab = GetDlgItem(hwndDlg, IDC_SETTINGS_TAB_CONTAINER);
 
-		ComboBox_SetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), MusicEngineStringToInt(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER].ToString().c_str()));
+		// Add tabs to the tab control
+		memset(&tie, 0, sizeof(TCITEM));
+		tie.mask = TCIF_TEXT | TCIF_IMAGE;
+		tie.iImage = -1;
+		tie.pszText = (char*)"General";
+		TabCtrl_InsertItem(stSettingsDialogHeader.hwndTab, 0, &tie);
+		tie.pszText = (char*)"Gameplay";
+		TabCtrl_InsertItem(stSettingsDialogHeader.hwndTab, 1, &tie);
+		tie.pszText = (char*)"Audio";
+		TabCtrl_InsertItem(stSettingsDialogHeader.hwndTab, 2, &tie);
 
-		{
-			const char* szSoundFontBaseName = GetFileBaseName(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT].ToString().c_str());
-			SetDlgItemText(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT, szSoundFontBaseName);
-			free((void*)szSoundFontBaseName);
-		}
+		// Assign the resources and procedures for the three child tab dialogs
+		stSettingsDialogHeader.pDlgResource[0] = SettingsGetDialogResource(MAKEINTRESOURCE(IDD_SETTINGS_GENERAL));
+		stSettingsDialogHeader.pDlgResource[1] = SettingsGetDialogResource(MAKEINTRESOURCE(IDD_SETTINGS_GAMEPLAY));
+		stSettingsDialogHeader.pDlgResource[2] = SettingsGetDialogResource(MAKEINTRESOURCE(IDD_SETTINGS_AUDIO));
+		stSettingsDialogHeader.pDlgProc[0] = SettingsDialogGeneralTabProc;
+		stSettingsDialogHeader.pDlgProc[1] = SettingsDialogGameplayTabProc;
+		stSettingsDialogHeader.pDlgProc[2] = SettingsDialogAudioTabProc;
+		stSettingsDialogHeader.stSettingsChanges = (settings_t*)lParam;
 
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND], IDC_SETTINGS_CHECK_BKGDMUSIC);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE], IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC], IDC_SETTINGS_CHECK_SHUFFLE_MUSIC);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES], IDC_SETTINGS_CHECK_REFRESH_RATE);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC], IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC);
+		// Compute the sizing for the tab contents
+		//CenterDialogBox(hwndDlg);
+		SetRectEmpty(&rcTab);
+		GetWindowRect(stSettingsDialogHeader.hwndTab, &rcTab);
+		TabCtrl_AdjustRect(stSettingsDialogHeader.hwndTab, TRUE, &rcTab);
+		OffsetRect(&rcTab, 8, -16);
+		rcTab.right -= 20;
+		rcTab.bottom -= 64;
+		CopyRect(&stSettingsDialogHeader.rcDisplay, &rcTab);
 
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON], IDC_SETTINGS_CHECK_CONSOLE);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD], IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS], IDC_SETTINGS_CHECK_DONT_LOAD_MODS);
+		// Center the dialog box and select tab 0
+		SettingsTabSelectionChanged(hwndDlg);
+		//return TRUE;
+		break;
 
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS], IDC_SETTINGS_CHECK_STATUS_DIALOG);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND], IDC_SETTINGS_CHECK_TITLE_DATE);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS], IDC_SETTINGS_CHECK_NEW_STRINGS);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO], IDC_SETTINGS_CHECK_SKIP_INTRO);
-		SET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND], IDC_SETTINGS_CHECK_DARK_UNDGRND);
-
-		// Center the dialog box
-		CenterDialogBox(hwndDlg);
-		return TRUE;
-
-	// Close without saving if the dialog is closed via the menu bar close button or Alt+F4
+		// Close without saving if the dialog is closed via the menu bar close button or Alt+F4
 	case WM_CLOSE:
 		EndDialog(hwndDlg, FALSE);
 		break;
 
 	case WM_COMMAND:
-		st = (settings_t *)GetWindowLong(hwndDlg, GWL_USERDATA);
 		switch (GET_WM_COMMAND_ID(wParam, lParam)) {
-		case ID_SETTINGS_OK:
-			// Grab settings from the dialog controls
-			if (GetDlgItemText(hwndDlg, IDC_SETTINGS_MAYOR, szTempRegistrationNameBuffer, 63))
-				jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_MAYORNAME] = szTempRegistrationNameBuffer;
-			if (GetDlgItemText(hwndDlg, IDC_SETTINGS_COMPANY, szTempRegistrationNameBuffer, 63))
-				jsonSettingsCoreWorkingCopy[C_SIMCITY2000][S_SIM_REG][I_SIM_REG_COMPANYNAME] = szTempRegistrationNameBuffer;
-
-			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER] = MusicEngineIntToString(ComboBox_GetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT)));
-
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND], IDC_SETTINGS_CHECK_BKGDMUSIC);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE], IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC], IDC_SETTINGS_CHECK_SHUFFLE_MUSIC);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES], IDC_SETTINGS_CHECK_REFRESH_RATE);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC], IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC);
-
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON], IDC_SETTINGS_CHECK_CONSOLE);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD], IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS], IDC_SETTINGS_CHECK_DONT_LOAD_MODS);
-
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS], IDC_SETTINGS_CHECK_STATUS_DIALOG);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND], IDC_SETTINGS_CHECK_TITLE_DATE);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS], IDC_SETTINGS_CHECK_NEW_STRINGS);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO], IDC_SETTINGS_CHECK_SKIP_INTRO);
-			GET_CHECKBOX(jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND], IDC_SETTINGS_CHECK_DARK_UNDGRND);
-
+		case IDOK:
 			EndDialog(hwndDlg, TRUE);
 			break;
-		case ID_SETTINGS_CANCEL:
+		case IDCANCEL:
 			EndDialog(hwndDlg, FALSE);
 			break;
-		case ID_SETTINGS_DEFAULTS:
+		case IDC_SETTINGS_BUTTON_DEFAULTS:
 			// Set all the checkboxes to the defaults.
-			ComboBox_SetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), MUSIC_ENGINE_SEQUENCER);
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON] = DEF_FIX_CORE_FORCECON;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD] = DEF_FIX_CORE_CHECKFORUPD;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS] = DEF_FIX_CORE_SKIPMODS;
 
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_BKGDMUSIC), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SHUFFLE_MUSIC), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_REFRESH_RATE), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC), BST_UNCHECKED);
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND] = DEF_FIX_AUD_MUSICINBKGRND;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE] = DEF_FIX_AUD_USESNDREPLACE;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC] = DEF_FIX_AUD_SHUFFLEMUSIC;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER] = DEF_FIX_AUD_MUSICDRIVER;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT] = DEF_FIX_AUD_SOUNDFONT;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC] = DEF_FIX_AUD_ALWAYSPLAYMUSIC;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MASTERVOLUME] = DEF_FIX_AUD_MASTERVOLUME;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICVOLUME] = DEF_FIX_AUD_MUSICVOLUME;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDVOLUME] = DEF_FIX_AUD_SOUNDVOLUME;
 
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CONSOLE), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DONT_LOAD_MODS), BST_UNCHECKED);
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES] = DEF_FIX_QOL_FREQUPDATES;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND] = DEF_FIX_QOL_DARKUNDGRND;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO] = DEF_FIX_QOL_SKIPINTRO;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS] = DEF_FIX_QOL_USENEWSTRINGS;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS] = DEF_FIX_QOL_USEFLTSTATUS;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND] = DEF_FIX_QOL_TITLECALEND;
 
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_STATUS_DIALOG), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_TITLE_DATE), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_NEW_STRINGS), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SKIP_INTRO), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DARK_UNDGRND), BST_UNCHECKED);
-			break;
-		case ID_SETTINGS_VANILLA:
-			// Clear all checkboxes except for the update checker.
-			ComboBox_SetCurSel(GetDlgItem(hwndDlg, IDC_SETTINGS_COMBO_MUSICOUTPUT), MUSIC_ENGINE_SEQUENCER);
-
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_BKGDMUSIC), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SOUND_REPLACEMENTS), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SHUFFLE_MUSIC), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_REFRESH_RATE), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_ALWAYSPLAYMUSIC), BST_UNCHECKED);
-
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CONSOLE), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_CHECK_FOR_UPDATES), BST_CHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DONT_LOAD_MODS), BST_CHECKED);
-
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_STATUS_DIALOG), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_TITLE_DATE), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_NEW_STRINGS), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_SKIP_INTRO), BST_UNCHECKED);
-			Button_SetCheck(GetDlgItem(hwndDlg, IDC_SETTINGS_CHECK_DARK_UNDGRND), BST_UNCHECKED);
-			break;
-		case IDC_SETTINGS_BUTTON_RESETFILEASSOCIATIONS:
-			ResetFileAssociations();
-			MessageBox(hwndDlg, ".sc2 and .scn file associations reset!", "It Works!", MB_OK | MB_ICONINFORMATION);
-			break;
-		case IDC_SETTINGS_BUTTON_SOUNDFONTBROWSE:
-			if (GetOpenFileName(&stOFNFluidSynth)) {
-				if (mus_debug & 8)
-					ConsoleLog(LOG_DEBUG, "CORE: SoundFont setting changed; new soundfont is %s\n", szFluidSynthSettingPath);
-
-				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT] = szFluidSynthSettingPath;
-
-				{
-					const char* szSoundFontBaseName = GetFileBaseName(szFluidSynthSettingPath);
-					SetDlgItemText(hwndDlg, IDC_SETTINGS_FLUIDSYNTH_SOUNDFONT, szSoundFontBaseName);
-					free((void*)szSoundFontBaseName);
-				}
+			for (int i = 10000; i < 10019; i++) {
+				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_MUSMID][std::to_string(i)] = "";
+				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_MUSMP3][std::to_string(i)] = "";
 			}
+
+			// Refresh the tab we're on
+			SettingsTabSelectionChanged(hwndDlg);
 			break;
-		case IDC_SETTINGS_BUTTON_CONFMIDTRACKS:
-			return DoConfigureMusicTracks(st, hwndDlg, FALSE);
-		case IDC_SETTINGS_BUTTON_CONFMP3TRACKS:
-			return DoConfigureMusicTracks(st, hwndDlg, TRUE);
-		case IDC_SETTINGS_BUTTON_CONFKEYBINDINGS:
-			return DoConfigureKeyBindings(st, hwndDlg);
+		case IDC_SETTINGS_BUTTON_VANILLA:
+			// Clear all checkboxes except for the update checker.
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_FORCECON] = DEF_FIX_CORE_FORCECON;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_CHECKFORUPD] = DEF_FIX_CORE_CHECKFORUPD;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_CORE][I_FIX_CORE_SKIPMODS] = DEF_FIX_CORE_SKIPMODS;
+
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICINBKGRND] = false;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_USESNDREPLACE] = false;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SHUFFLEMUSIC] = DEF_FIX_AUD_SHUFFLEMUSIC;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER] = DEF_FIX_AUD_MUSICDRIVER;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT] = DEF_FIX_AUD_SOUNDFONT;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_ALWAYSPLAYMUSIC] = DEF_FIX_AUD_ALWAYSPLAYMUSIC;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MASTERVOLUME] = DEF_FIX_AUD_MASTERVOLUME;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICVOLUME] = DEF_FIX_AUD_MUSICVOLUME;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDVOLUME] = DEF_FIX_AUD_SOUNDVOLUME;
+
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_FREQUPDATES] = false;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_DARKUNDGRND] = DEF_FIX_QOL_DARKUNDGRND;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_SKIPINTRO] = DEF_FIX_QOL_SKIPINTRO;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USENEWSTRINGS] = false;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_USEFLTSTATUS] = DEF_FIX_QOL_USENEWSTRINGS;
+			jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_QOL][I_FIX_QOL_TITLECALEND] = false;
+
+			for (int i = 10000; i < 10019; i++) {
+				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_MUSMID][std::to_string(i)] = "";
+				jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_MUSMP3][std::to_string(i)] = "";
+			}
+
+			// Refresh the tab we're on
+			SettingsTabSelectionChanged(hwndDlg);
+			break;
 		}
 		return TRUE;
 
 	case WM_DESTROY:
 		DestroyStoredTooltips(storedToolTips, hwndDlg);
 
+		return TRUE;
+
+		// Handle the tab selection
+	case WM_NOTIFY:
+		if (((NMHDR*)lParam)->code == TCN_SELCHANGE) {
+			SettingsTabSelectionChanged(hwndDlg);
+			return TRUE;
+		}
 		break;
 	}
+
 	return FALSE;
 }
 
 void ShowSettingsDialog(void) {
-	settings_t st;
+	settings_t stSettingsChanges;
+	memset(&stSettingsChanges, 0, sizeof(settings_t));
 
 	// Copy the active settings structure into the working copy
 	jsonSettingsCoreWorkingCopy = jsonSettingsCore;
@@ -575,12 +775,12 @@ void ShowSettingsDialog(void) {
 
 	ToggleFloatingStatusDialog(FALSE);
 
-	if (DialogBoxParamA(hSC2KFixModule, MAKEINTRESOURCE(IDD_SETTINGS), GameGetRootWindowHandle(), SettingsDialogProc, (LPARAM)&st) == TRUE) {
+	if (DialogBoxParamA(hSC2KFixModule, MAKEINTRESOURCE(IDD_SETTINGS_CONTAINER), GameGetRootWindowHandle(), SettingsDialogContainerProc, (LPARAM)&stSettingsChanges) == TRUE) {
 		// Copy back all our settings into the active structure
 		jsonSettingsCore = jsonSettingsCoreWorkingCopy;
 
 		// Update any keybindings if needed
-		if (st.bKeyBindingsChanged) {
+		if (stSettingsChanges.bKeyBindingsChanged) {
 			UpdateKeyBindings();
 			SaveJSONBindings(jsonSettingsCore);
 		}
@@ -591,7 +791,7 @@ void ShowSettingsDialog(void) {
 		// See if we need to reset the music engine.
 		if (dwMusicThreadID && (strOriginalMusicDriver != jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_MUSICDRIVER].ToString() ||
 			strOriginalSoundfont != jsonSettingsCoreWorkingCopy[C_SC2KFIX][S_FIX_AUDIO][I_FIX_AUD_SOUNDFONT].ToString()) ||
-			(st.bActiveMusicDriverTouched && st.bActiveTrackChanged))
+			(stSettingsChanges.bActiveMusicDriverTouched && stSettingsChanges.bActiveTrackChanged))
 			PostThreadMessage(dwMusicThreadID, WM_MUSIC_RESET, NULL, NULL);
 	}
 
