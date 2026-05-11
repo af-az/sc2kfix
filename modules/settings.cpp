@@ -247,9 +247,13 @@ void LoadJSONSettings(void) {
 	// XXX: this is a bit inefficient; maybe do a std::string with a pre-allocation using
 	// std::filesystem::file_size() instead?
 	std::ifstream fSettingsJSON(GetSettingsJsonPath());
-	std::stringstream strLoadedJSONDump;
-	strLoadedJSONDump << fSettingsJSON.rdbuf();
-	jsonSettingsCore.merge(jsonSettingsCore.Load(strLoadedJSONDump.str()));
+	if (fSettingsJSON.good()) {
+		std::stringstream strLoadedJSONDump;
+		if (strLoadedJSONDump.good()) {
+			strLoadedJSONDump << fSettingsJSON.rdbuf();
+			jsonSettingsCore.merge(jsonSettingsCore.Load(strLoadedJSONDump.str()));
+		}
+	}
 	LoadJSONBindings(jsonSettingsCore);
 }
 
