@@ -352,6 +352,12 @@ void InstallMiscHooks_SC2K1995(void) {
 	SafeVirtualProtect((LPVOID)0x42E737, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x42E737, Hook_1995_LoadCityCancelFix);
 
+	// Fix the black <-> white palette index swap
+	// that occurs within CGraphics::RemapBitmapColors(BOOL)
+	// eax rather than ecx.
+	SafeVirtualProtect((LPVOID)0x47643F, 1, PAGE_EXECUTE_READWRITE);
+	*(BYTE*)0x47643F = 0x84; // This was 0x8C
+
 	// Fix the 'Arial" font
 	SafeVirtualProtect((LPVOID)0x4E6234, 6, PAGE_EXECUTE_READWRITE);
 	memset((LPVOID)0x4E6234, 0, 6);
