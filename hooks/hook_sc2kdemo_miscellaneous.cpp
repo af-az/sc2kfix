@@ -251,6 +251,14 @@ void InstallMiscHooks_SC2KDemo(void) {
 	memset((LPVOID)0x4D2984, 0, 13);
 	memcpy_s((LPVOID)0x4D2984, 13, "presnts.bmp", 12);
 
+	// Change the referenced variable to 'EditData' instead.
+	// This restores the "city center" marker when the
+	// "Land Value" tab is selected.
+	// Originally it was comparing against an orphaned variable.
+	SafeVirtualProtect((LPVOID)0x473618, 8, PAGE_EXECUTE_READWRITE);
+	*(BYTE *)0x47361C = 0x30;
+	*(BYTE *)0x47361B = 0x04;
+
 	// Hook CWnd::OnCommand
 	SafeVirtualProtect((LPVOID)0x48D687, 5, PAGE_EXECUTE_READWRITE);
 	NEWJMP((LPVOID)0x48D687, Hook_Demo_Wnd_OnCommand);

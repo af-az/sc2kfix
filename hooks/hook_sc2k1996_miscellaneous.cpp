@@ -2314,6 +2314,14 @@ void InstallMiscHooks_SC2K1996(void) {
 	memset((LPVOID)0x4E6130, 0, 13);
 	memcpy_s((LPVOID)0x4E6130, 12, "presnts.bmp", 12);
 
+	// Change the referenced variable to 'EditData' instead.
+	// This restores the "city center" marker when the
+	// "Land Value" tab is selected.
+	// Originally it was comparing against an orphaned variable.
+	SafeVirtualProtect((LPVOID)0x487B37, 8, PAGE_EXECUTE_READWRITE);
+	*(BYTE *)0x487B3B = 0xA4;
+	*(BYTE *)0x487B3A = 0x04;
+
 	// Install hooks for saving and loading
 	InstallSaveHooks_SC2K1996();
 
