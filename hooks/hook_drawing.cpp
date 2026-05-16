@@ -997,7 +997,7 @@ extern "C" void __cdecl Hook_DrawColorTile(__int16 iX, __int16 iY) {
 					bBlock = GetXPLCByteDataWithNormalCoordinates(iX, iY);
 					break;
 				case EDIT_DATA_POLLUTION:
-					bBlock = GetXPOPByteDataWithNormalCoordinates(iX, iY);
+					bBlock = GetXPLTByteDataWithNormalCoordinates(iX, iY);
 					break;
 				case EDIT_DATA_LANDVALUE:
 					bBlock = GetXVALByteDataWithNormalCoordinates(iX, iY);
